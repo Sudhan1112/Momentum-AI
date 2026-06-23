@@ -26,6 +26,35 @@ Next.js + TipTap, **Yjs** over **Socket.IO**, **Supabase** Auth, **PostgreSQL** 
 
 ---
 
+## Lumina AI Execution Workspace documentation
+
+Lumina Write is evolving into **Lumina** — an AI Execution Workspace powered by **Momentum AI**. The docs below are the approved implementation handbook. **Start with the Codex handbook** before writing code.
+
+| If you want to… | Open |
+| --- | --- |
+| **Start implementing (Codex / contributors)** | [docs/lumina-codex-handbook.md](docs/lumina-codex-handbook.md) |
+| Product vision and north star | [docs/lumina-vision.md](docs/lumina-vision.md) |
+| System architecture and migration | [docs/lumina-architecture.md](docs/lumina-architecture.md) |
+| Database design (no SQL) | [docs/lumina-database-architecture.md](docs/lumina-database-architecture.md) |
+| API and service boundaries | [docs/lumina-api-architecture.md](docs/lumina-api-architecture.md) |
+| UI, navigation, demo flows | [docs/lumina-ui-architecture.md](docs/lumina-ui-architecture.md) |
+| Momentum AI (primary AI reference) | [docs/lumina-ai-architecture.md](docs/lumina-ai-architecture.md) |
+| MVP scope (must / should / defer) | [docs/lumina-mvp-scope.md](docs/lumina-mvp-scope.md) |
+| Implementation roadmap (sprints) | [docs/lumina-implementation-roadmap.md](docs/lumina-implementation-roadmap.md) |
+| Current codebase snapshot (pre-Lumina) | [docs/lumina-write-existing-state.md](docs/lumina-write-existing-state.md) |
+
+### Suggested reading order (Lumina implementation)
+
+| Step | Doc |
+| --- | --- |
+| **1** | [lumina-codex-handbook.md](docs/lumina-codex-handbook.md) |
+| **2** | [lumina-mvp-scope.md](docs/lumina-mvp-scope.md) |
+| **3** | [lumina-implementation-roadmap.md](docs/lumina-implementation-roadmap.md) |
+| **4** | [lumina-database-architecture.md](docs/lumina-database-architecture.md) → [lumina-api-architecture.md](docs/lumina-api-architecture.md) |
+| **5** | [lumina-ui-architecture.md](docs/lumina-ui-architecture.md) + [lumina-ai-architecture.md](docs/lumina-ai-architecture.md) |
+
+---
+
 ## Documentation handbook
 
 Technical articles live under **`docs/`** (this file is the **only** `README` at the repo root). Each doc has **Previous / Next** links at the bottom.
@@ -65,6 +94,16 @@ Follow **1 → 8** the first time; use [docs/troubleshooting.md](docs/troublesho
 
 ```text
 docs/
+├── lumina-codex-handbook.md          ← start here for Lumina implementation
+├── lumina-vision.md
+├── lumina-architecture.md
+├── lumina-database-architecture.md
+├── lumina-api-architecture.md
+├── lumina-ui-architecture.md
+├── lumina-ai-architecture.md
+├── lumina-mvp-scope.md
+├── lumina-implementation-roadmap.md
+├── lumina-write-existing-state.md
 ├── getting-started.md
 ├── architecture.md
 ├── api-overview.md
