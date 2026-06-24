@@ -27,8 +27,29 @@ export type ProjectMember = {
   created_at: string
 }
 
+export type ProfileSummary = {
+  id: string
+  email: string | null
+  full_name: string | null
+  avatar_url: string | null
+}
+
+export type ProjectMemberWithProfile = ProjectMember & {
+  profile: ProfileSummary | null
+}
+
+export type ProjectTaskCounts = {
+  total: number
+  open: number
+  done: number
+  blocked: number
+  overdue: number
+}
+
 export type ProjectWithMembers = Project & {
-  members: ProjectMember[]
+  owner: ProfileSummary | null
+  members: ProjectMemberWithProfile[]
+  task_counts: ProjectTaskCounts
 }
 
 export type ProjectSummary = Pick<
@@ -36,3 +57,18 @@ export type ProjectSummary = Pick<
   'id' | 'title' | 'status' | 'target_deadline' | 'updated_at'
 >
 
+export type ProjectListItem = ProjectWithMembers
+
+export type ProjectDetail = ProjectWithMembers
+
+export type CreateProjectInput = {
+  title: string
+  description?: string | null
+  target_deadline?: string | null
+  goal_summary?: string | null
+  execution_target_score?: number | null
+}
+
+export type UpdateProjectInput = Partial<CreateProjectInput> & {
+  status?: ProjectStatus
+}

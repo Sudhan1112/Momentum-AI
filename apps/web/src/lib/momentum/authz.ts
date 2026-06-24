@@ -4,6 +4,7 @@ import type { User } from '@supabase/supabase-js'
 import type { NextResponse } from 'next/server'
 
 import { jsonError } from '@/lib/api-route-errors'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { AppRole } from '@/types/project'
 
@@ -45,19 +46,8 @@ export type AiRunAccessContext = {
   taskId: string | null
 }
 
-function sprintStub(name: string): AuthzFailure {
-  return {
-    ok: false,
-    response: jsonError(
-      `${name} is a Sprint 0 authz stub. Project, task, and AI authorization helpers are activated in later sprints.`,
-      501
-    ),
-  }
-}
-
-function markUnused(...values: unknown[]) {
-  void values
-}
+const WRITE_ROLES = new Set<AppRole>(['owner', 'admin', 'editor'])
+const ADMIN_ROLES = new Set<AppRole>(['owner', 'admin'])
 
 export async function requireSession(): Promise<AuthzResult<SessionContext>> {
   const supabase = createClient()
@@ -73,46 +63,117 @@ export async function requireSession(): Promise<AuthzResult<SessionContext>> {
   return { ok: true, data: { user } }
 }
 
-export async function assertProjectMember(_projectId: string, _userId: string): Promise<AuthzResult<ProjectAccessContext>> {
-  markUnused(_projectId, _userId)
-  return sprintStub('assertProjectMember')
+async function getProjectRole(projectId: string, userId: string): Promise<AuthzResult<ProjectAccessContext>> {
+  const admin = createAdminClient()
+  const { data: project, error: projectError } = await admin
+    .from('projects')
+    .select('id, owner_id')
+    .eq('id', projectId)
+    .maybeSingle()
+
+  if (projectError) {
+    return { ok: false, response: jsonError(projectError.message, 500) }
+  }
+
+  if (!project) {
+    return { ok: false, response: jsonError('Project not found', 404) }
+  }
+
+  if (project.owner_id === userId) {
+    return { ok: true, data: { projectId, userId, role: 'owner' } }
+  }
+
+  const { data: membership, error: membershipError } = await admin
+    .from('project_members')
+    .select('role')
+    .eq('project_id', projectId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (membershipError) {
+    return { ok: false, response: jsonError(membershipError.message, 500) }
+  }
+
+  if (!membership) {
+    return { ok: false, response: jsonError('Forbidden', 403) }
+  }
+
+  return { ok: true, data: { projectId, userId, role: membership.role as AppRole } }
+}
+
+export async function assertProjectMember(projectId: string, userId: string): Promise<AuthzResult<ProjectAccessContext>> {
+  return getProjectRole(projectId, userId)
 }
 
 export async function assertProjectWriteRole(
-  _projectId: string,
-  _userId: string
+  projectId: string,
+  userId: string
 ): Promise<AuthzResult<ProjectAccessContext>> {
-  markUnused(_projectId, _userId)
-  return sprintStub('assertProjectWriteRole')
+  const result = await getProjectRole(projectId, userId)
+  if (!result.ok) return result
+  if (!WRITE_ROLES.has(result.data.role)) {
+    return { ok: false, response: jsonError('Forbidden', 403) }
+  }
+  return result
 }
 
 export async function assertProjectOwnerOrAdmin(
-  _projectId: string,
-  _userId: string
+  projectId: string,
+  userId: string
 ): Promise<AuthzResult<ProjectAccessContext>> {
-  markUnused(_projectId, _userId)
-  return sprintStub('assertProjectOwnerOrAdmin')
+  const result = await getProjectRole(projectId, userId)
+  if (!result.ok) return result
+  if (!ADMIN_ROLES.has(result.data.role)) {
+    return { ok: false, response: jsonError('Forbidden', 403) }
+  }
+  return result
 }
 
-export async function assertProjectOwner(_projectId: string, _userId: string): Promise<AuthzResult<ProjectAccessContext>> {
-  markUnused(_projectId, _userId)
-  return sprintStub('assertProjectOwner')
+export async function assertProjectOwner(projectId: string, userId: string): Promise<AuthzResult<ProjectAccessContext>> {
+  const result = await getProjectRole(projectId, userId)
+  if (!result.ok) return result
+  if (result.data.role !== 'owner') {
+    return { ok: false, response: jsonError('Forbidden', 403) }
+  }
+  return result
 }
 
-export async function assertTaskAccess(_taskId: string, _userId: string): Promise<AuthzResult<TaskAccessContext>> {
-  markUnused(_taskId, _userId)
-  return sprintStub('assertTaskAccess')
+export async function assertTaskAccess(taskId: string, userId: string): Promise<AuthzResult<TaskAccessContext>> {
+  const admin = createAdminClient()
+  const { data: task, error } = await admin.from('tasks').select('id, project_id').eq('id', taskId).maybeSingle()
+
+  if (error) {
+    return { ok: false, response: jsonError(error.message, 500) }
+  }
+
+  if (!task) {
+    return { ok: false, response: jsonError('Task not found', 404) }
+  }
+
+  const result = await getProjectRole(task.project_id, userId)
+  if (!result.ok) return result
+  return { ok: true, data: { ...result.data, taskId } }
 }
 
 export async function assertDocumentOwnerForLink(
-  _documentId: string,
-  _userId: string
+  documentId: string,
+  userId: string
 ): Promise<AuthzResult<DocumentLinkAccessContext>> {
-  markUnused(_documentId, _userId)
-  return sprintStub('assertDocumentOwnerForLink')
+  void documentId
+  void userId
+
+  return {
+    ok: false,
+    response: jsonError('Document linking is not available in Sprint 1', 501),
+  }
 }
 
-export async function canReadAiRun(_aiRunId: string, _userId: string): Promise<AuthzResult<AiRunAccessContext>> {
-  markUnused(_aiRunId, _userId)
-  return sprintStub('canReadAiRun')
+export async function canReadAiRun(aiRunId: string, userId: string): Promise<AuthzResult<AiRunAccessContext>> {
+  void aiRunId
+  void userId
+
+  return {
+    ok: false,
+    response: jsonError('AI run access is not available in Sprint 1', 501),
+  }
 }

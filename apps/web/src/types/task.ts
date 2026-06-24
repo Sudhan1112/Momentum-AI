@@ -26,8 +26,6 @@ export type Task = {
   completed_at: string | null
   estimate_minutes: number | null
   actual_minutes: number | null
-  parent_task_id: string | null
-  document_id: string | null
   sort_order: number
   blocked_at: string | null
   blocked_reason: string | null
@@ -40,4 +38,35 @@ export type TaskSummary = Pick<
   Task,
   'id' | 'project_id' | 'title' | 'status' | 'priority' | 'assignee_id' | 'due_at'
 >
+
+export type TaskItem = Task & {
+  assignee: ProfileSummary | null
+}
+
+export type TaskDetail = TaskItem & {
+  project: {
+    id: string
+    title: string
+    status: string
+    owner_id: string
+  }
+}
+
+export type CreateTaskInput = {
+  title: string
+  description?: string | null
+  status?: TaskStatus
+  priority?: TaskPriority
+  assignee_id?: string | null
+  due_at?: string | null
+  estimate_minutes?: number | null
+  blocked_reason?: string | null
+}
+
+export type UpdateTaskInput = Partial<CreateTaskInput> & {
+  actual_minutes?: number | null
+  started_at?: string | null
+  completed_at?: string | null
+}
+import type { ProfileSummary } from '@/types/project'
 
