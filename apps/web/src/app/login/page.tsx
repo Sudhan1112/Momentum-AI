@@ -69,14 +69,14 @@ export default function LoginPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: 'linear-gradient(135deg, #c57b3f 0%, #9a5b2b 100%)', boxShadow: '0 10px 24px rgba(154,91,43,0.22)' }}>
               <FileText className="h-5 w-5 text-white" />
             </div>
-            <span className="text-lg font-bold tracking-tight">Lumina Write</span>
+            <span className="text-lg font-bold tracking-tight">Momentum AI</span>
           </Link>
         </div>
 
         <div className="mt-16 sm:mt-24 lg:mt-0">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold" style={{ background: 'rgba(255,255,255,0.72)', borderColor: '#e8decf', color: '#6b5f52' }}>
             <span className="flex h-2 w-2 rounded-full bg-[#9a5b2b]" />
-            Lumina Write workspace
+            Momentum AI workspace
           </div>
           
           <h1 className="text-4xl font-light leading-[1.15] tracking-tight sm:text-5xl lg:text-6xl" style={{ fontFamily: 'Newsreader, Georgia, serif' }}>
@@ -85,7 +85,7 @@ export default function LoginPage() {
           </h1>
           
           <p className="mt-6 max-w-md text-lg leading-relaxed" style={{ color: '#6b5f52' }}>
-            Lumina Write brings together focused drafting and real-time collaboration in one polished workspace.
+            Momentum AI brings projects, tasks, and collaborative documents together so meaningful work keeps moving.
           </p>
 
           <div className="mt-10 flex flex-wrap gap-3">
@@ -104,7 +104,7 @@ export default function LoginPage() {
 
         <div className="mt-16 hidden items-center justify-start lg:flex">
           <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#8a7f72', opacity: 0.9 }}>
-            © 2026 Lumina Write
+            © 2026 Momentum AI
           </p>
         </div>
       </div>
@@ -214,7 +214,7 @@ export default function LoginPage() {
           {/* Mobile Footer */}
           <div className="mt-8 text-center lg:hidden">
             <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#8a7f72', opacity: 0.9 }}>
-              © 2026 Lumina Write
+              © 2026 Momentum AI
             </p>
           </div>
         </div>

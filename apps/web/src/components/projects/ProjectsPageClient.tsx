@@ -96,7 +96,7 @@ export function ProjectsPageClient() {
           <div>
             <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-[#7b746b] hover:text-[#9a5b2b]">
               <ArrowLeft className="h-4 w-4" />
-              Back to Lumina Write
+              Back to Momentum AI
             </Link>
             <div className="mt-5 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#9a5b2b] text-white shadow-lg">

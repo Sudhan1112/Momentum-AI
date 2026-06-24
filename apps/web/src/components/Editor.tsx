@@ -1025,7 +1025,7 @@ function EditorInner({ documentId, user }: { documentId: string; user: User }) {
     id: version.id,
     label: version.label || 'Snapshot',
     description: `Captured ${formatRelativeTime(version.created_at)} from the live collaborative canvas.`,
-    author: version.profiles?.full_name || version.profiles?.email || 'Lumina Write',
+    author: version.profiles?.full_name || version.profiles?.email || 'Momentum AI',
     time: formatRelativeTime(version.created_at),
   }))
 
@@ -1047,7 +1047,7 @@ function EditorInner({ documentId, user }: { documentId: string; user: User }) {
               <SafeIcon icon={FileText} className="h-5 w-5 text-white" />
             </div>
             <div className="hidden pr-2 sm:block">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[#998b7d]">Lumina Write</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[#998b7d]">Momentum AI</p>
               <p className="text-sm font-semibold text-[#201a13]">Writing studio</p>
             </div>
           </Link>

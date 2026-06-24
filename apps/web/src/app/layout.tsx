@@ -4,8 +4,8 @@ import { ThemeProvider } from '@/components/ThemeProvider'
 import ToasterWrapper from '@/components/ToasterWrapper'
 
 export const metadata: Metadata = {
-  title: 'Lumina Write',
-  description: 'Lumina Write is a collaborative writing workspace with real-time presence and thoughtful document sharing.',
+  title: 'Momentum AI',
+  description: 'Momentum AI is an execution workspace that helps teams turn projects, tasks, and collaborative documents into finished work.',
   icons: {
     icon: [
       { url: '/brand/logo-32.png?v=3', sizes: '32x32', type: 'image/png' },

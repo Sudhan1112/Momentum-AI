@@ -159,7 +159,7 @@ export function ShareModal({
       <div className="relative z-[10051] mx-auto w-full max-w-xl rounded-[30px] border p-6 shadow-[0_30px_80px_rgba(32,26,19,0.22)]" style={{ background: '#fffdfa', borderColor: '#e6dbc9' }}>
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#998b7d]">Lumina Write</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#998b7d]">Momentum AI</p>
             <h3 id="share-modal-title" className="mt-2 text-[28px] font-semibold tracking-tight text-[#201a13]">
               Share document
             </h3>

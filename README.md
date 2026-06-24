@@ -1,8 +1,8 @@
-# Lumina Write
+# Momentum AI
 
-## What is Lumina Write?
+## What is Momentum AI?
 
-**Lumina Write is a Google Docs–style collaborative editor for the web:** you and your teammates edit the same document at the same time, see who is online, and discuss the text with comments. You sign in, create or open a doc, share it with the right permissions, and start writing—nothing to install.
+**Momentum AI is an AI execution workspace for turning projects, tasks, and collaborative documents into finished work:** you can organize commitments, create or open docs, share with the right permissions, and keep writing in real time with teammates.
 
 ## Why is this interesting?
 
@@ -26,9 +26,9 @@ Next.js + TipTap, **Yjs** over **Socket.IO**, **Supabase** Auth, **PostgreSQL** 
 
 ---
 
-## Lumina AI Execution Workspace documentation
+## Momentum AI Execution Workspace documentation
 
-Lumina Write is evolving into **Lumina** — an AI Execution Workspace powered by **Momentum AI**. The docs below are the approved implementation handbook. **Start with the Codex handbook** before writing code.
+Momentum AI builds on the existing collaborative document foundation formerly known as Lumina Write. The docs below are the approved implementation handbook. **Start with the Codex handbook** before writing code.
 
 | If you want to… | Open |
 | --- | --- |
@@ -43,7 +43,7 @@ Lumina Write is evolving into **Lumina** — an AI Execution Workspace powered b
 | Implementation roadmap (sprints) | [docs/lumina-implementation-roadmap.md](docs/lumina-implementation-roadmap.md) |
 | Current codebase snapshot (pre-Lumina) | [docs/lumina-write-existing-state.md](docs/lumina-write-existing-state.md) |
 
-### Suggested reading order (Lumina implementation)
+### Suggested reading order (Momentum AI implementation)
 
 | Step | Doc |
 | --- | --- |
@@ -94,7 +94,7 @@ Follow **1 → 8** the first time; use [docs/troubleshooting.md](docs/troublesho
 
 ```text
 docs/
-├── lumina-codex-handbook.md          ← start here for Lumina implementation
+├── lumina-codex-handbook.md          ← start here for Momentum AI implementation
 ├── lumina-vision.md
 ├── lumina-architecture.md
 ├── lumina-database-architecture.md

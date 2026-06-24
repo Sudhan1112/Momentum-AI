@@ -10,9 +10,8 @@ dotenv.config()
 import { verifyUserToken, assertDocumentAccess, assertDocumentWriteAccess } from './auth'
 import { getOrCreateDoc, schedulePersist } from './yjsManager'
 
-/** Always allowed (production + local dev). Merged with CLIENT_URL from env. */
-const AUTHORIZED_ORIGINS = [
-  'https://lumina-write-editor.vercel.app',
+/** Always allowed for local development. Production origins are supplied through CLIENT_URL. */
+const LOCAL_DEV_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:3001',
 ] as const
@@ -26,7 +25,7 @@ function corsOrigin(): string | string[] | boolean {
       ? raw.split(',').map((s) => s.trim()).filter(Boolean)
       : []
 
-  const merged = [...new Set<string>([...AUTHORIZED_ORIGINS, ...fromEnv])]
+  const merged = [...new Set<string>([...LOCAL_DEV_ORIGINS, ...fromEnv])]
   if (merged.length === 0) return true
   return merged.length === 1 ? merged[0]! : merged
 }
