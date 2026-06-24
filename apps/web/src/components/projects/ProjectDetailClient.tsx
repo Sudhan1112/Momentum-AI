@@ -5,11 +5,13 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, CalendarDays, Loader2, Plus, Users } from 'lucide-react'
 
+import { RecoveryFlow } from '@/components/recovery/RecoveryFlow'
 import { TaskDrawer } from '@/components/tasks/TaskDrawer'
 import { TaskList } from '@/components/tasks/TaskList'
 import { getResponseErrorMessage, readResponsePayload } from '@/lib/http'
 import { notify } from '@/lib/notify'
 import { createClient } from '@/lib/supabase/client'
+import type { RecoveryPlan } from '@/lib/momentum/recovery-service'
 import type { AppRole, ProjectDetail } from '@/types/project'
 import type { TaskItem } from '@/types/task'
 
@@ -37,6 +39,7 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
   const router = useRouter()
   const [project, setProject] = useState<ProjectPayload | null>(null)
   const [tasks, setTasks] = useState<TaskItem[]>([])
+  const [recoveryPlans, setRecoveryPlans] = useState<RecoveryPlan[]>([])
   const [role, setRole] = useState<AppRole | null>(null)
   const [loading, setLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -74,12 +77,25 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
     setRole(nextPayload.role)
   }, [projectId])
 
+  const loadRecoveryPlans = useCallback(async () => {
+    const response = await fetch(`/api/projects/${projectId}/recovery-plans`, { cache: 'no-store' })
+    const payload = await readResponsePayload<RecoveryPlan[] | { error: string }>(response)
+
+    if (!response.ok) {
+      notify.error(getResponseErrorMessage(payload, 'Could not load recovery plans'))
+      return
+    }
+
+    setRecoveryPlans(Array.isArray(payload) ? payload : [])
+  }, [projectId])
+
   const refresh = useCallback(async () => {
     setLoading(true)
     await loadProject()
     await loadTasks()
+    await loadRecoveryPlans()
     setLoading(false)
-  }, [loadProject, loadTasks])
+  }, [loadProject, loadRecoveryPlans, loadTasks])
 
   useEffect(() => {
     let mounted = true
@@ -194,7 +210,10 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
             </header>
 
             <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
-              <TaskList tasks={tasks} canWrite={canWrite} onEdit={openEditTask} />
+              <div className="space-y-6">
+                <RecoveryFlow projectId={projectId} initialPlans={recoveryPlans} canWrite={canWrite} />
+                <TaskList tasks={tasks} canWrite={canWrite} onEdit={openEditTask} />
+              </div>
 
               <aside className="h-fit rounded-[28px] border border-[#e7dece] bg-white/75 p-5 shadow-[0_16px_40px_rgba(83,67,48,0.07)]">
                 <div className="flex items-center gap-2 text-sm font-bold text-[#1f2937]">
