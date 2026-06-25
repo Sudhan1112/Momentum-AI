@@ -20,15 +20,17 @@ export function useTheme() {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark')
-  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const stored = localStorage.getItem('canvas-ai-theme') as Theme | null
-    const preferred = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-    const initial = stored ?? preferred
-    setTheme(initial)
-    applyTheme(initial)
-    setMounted(true)
+    try {
+      const stored = localStorage.getItem('canvas-ai-theme') as Theme | null
+      const preferred = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      const initial = stored ?? preferred
+      setTheme(initial)
+      applyTheme(initial)
+    } catch {
+      applyTheme('dark')
+    }
   }, [])
 
   const applyTheme = (t: Theme) => {
@@ -44,11 +46,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setTheme(next)
     applyTheme(next)
     localStorage.setItem('canvas-ai-theme', next)
-  }
-
-  // Prevent flash of wrong theme
-  if (!mounted) {
-    return <div style={{ visibility: 'hidden' }}>{children}</div>
   }
 
   return (

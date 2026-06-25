@@ -3,11 +3,12 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const projectRoot = path.resolve(__dirname, '../..')
+const projectName = path.basename(projectRoot)
 const root = path.resolve(__dirname, '../../node_modules')
-const cacheRoot = process.env.LOCALAPPDATA || process.env.XDG_CACHE_HOME || path.join(os.homedir(), '.cache')
-const externalDistDir = path.relative(__dirname, path.join(cacheRoot, 'GUVI', 'next-web'))
-// Default to an external dist dir for local Windows builds to avoid OneDrive workspace issues.
-// Allow opting out with `GUVI_EXTERNAL_NEXT_DISTDIR=0`.
+const externalDistDir = path.relative(__dirname, path.join(os.tmpdir(), `${projectName}-next-web`))
+// Keep Next build artifacts outside OneDrive on local Windows.
+// The temp path is repo-specific to avoid stale artifacts from other projects.
 const useExternalDistDir =
   process.platform === 'win32' && !process.env.VERCEL && process.env.GUVI_EXTERNAL_NEXT_DISTDIR !== '0'
 

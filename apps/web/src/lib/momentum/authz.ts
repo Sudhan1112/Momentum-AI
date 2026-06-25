@@ -169,11 +169,47 @@ export async function assertDocumentOwnerForLink(
 }
 
 export async function canReadAiRun(aiRunId: string, userId: string): Promise<AuthzResult<AiRunAccessContext>> {
-  void aiRunId
-  void userId
+  const admin = createAdminClient()
+  const { data: run, error } = await admin
+    .from('ai_runs')
+    .select('id, user_id, project_id, task_id')
+    .eq('id', aiRunId)
+    .maybeSingle()
+
+  if (error) {
+    return { ok: false, response: jsonError(error.message, 500) }
+  }
+
+  if (!run) {
+    return { ok: false, response: jsonError('AI run not found', 404) }
+  }
+
+  if (run.user_id === userId) {
+    return {
+      ok: true,
+      data: {
+        aiRunId,
+        userId,
+        projectId: run.project_id ?? null,
+        taskId: run.task_id ?? null,
+      },
+    }
+  }
+
+  if (!run.project_id) {
+    return { ok: false, response: jsonError('Forbidden', 403) }
+  }
+
+  const projectAccess = await getProjectRole(run.project_id, userId)
+  if (!projectAccess.ok) return projectAccess
 
   return {
-    ok: false,
-    response: jsonError('AI run access is not available in Sprint 1', 501),
+    ok: true,
+    data: {
+      aiRunId,
+      userId,
+      projectId: run.project_id,
+      taskId: run.task_id ?? null,
+    },
   }
 }

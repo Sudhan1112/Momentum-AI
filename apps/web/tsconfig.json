@@ -41,7 +41,8 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "..\\..\\..\\..\\..\\AppData\\Local\\GUVI\\next-web/types/**/*.ts"
+    "..\\..\\..\\..\\..\\..\\..\\tmp\\Momentum-AI-next-web\\types\\**\\*.ts",
+    "..\\..\\..\\..\\..\\AppData\\Local\\Temp\\Momentum-AI-next-web/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

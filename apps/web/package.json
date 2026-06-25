@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node ./scripts/run-next.cjs dev",
     "build": "node ./scripts/run-next.cjs build",
     "start": "next start",
     "lint": "next lint"
