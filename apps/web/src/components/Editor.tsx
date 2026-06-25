@@ -13,6 +13,7 @@ import { notify } from '@/lib/notify'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
+  ArrowLeft,
   Bell,
   Bold,
   Check,
@@ -1042,6 +1043,15 @@ function EditorInner({ documentId, user }: { documentId: string; user: User }) {
         style={{ background: 'rgba(252,248,242,0.9)', borderColor: warmTheme.border, backdropFilter: 'blur(18px)' }}
       >
         <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href="/documents"
+            className="inline-flex h-10 items-center gap-2 rounded-full border px-3 text-sm font-semibold transition-colors hover:bg-[#f5ede2]"
+            style={{ borderColor: warmTheme.border, background: 'rgba(255,253,249,0.72)', color: warmTheme.text }}
+          >
+            <SafeIcon icon={ArrowLeft} className="h-4 w-4" />
+            <span className="hidden sm:inline">Back to Documents</span>
+            <span className="sm:hidden">Back</span>
+          </Link>
           <Link href="/" className="group flex shrink-0 items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-[18px] shadow-[0_14px_32px_rgba(154,91,43,0.18)] transition-transform group-hover:-translate-y-0.5" style={{ background: warmTheme.accentStrong }}>
               <SafeIcon icon={FileText} className="h-5 w-5 text-white" />

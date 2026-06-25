@@ -180,6 +180,10 @@ function documentAccessText(doc: Document, currentUserId?: string) {
   return `Shared by ${profileName(doc.owner, 'Someone')}`
 }
 
+function documentWorkspaceMessage() {
+  return 'Document workspace is not ready yet. Run the document database setup, reload the schema, then refresh.'
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const templatesRef = useRef<HTMLElement | null>(null)
@@ -250,7 +254,7 @@ export default function DashboardPage() {
       .catch((error) => {
         console.error(error)
         setDocuments([])
-        setLoadingError(error instanceof Error ? error.message : 'Failed to load documents.')
+        setLoadingError(documentWorkspaceMessage())
       })
       .finally(() => setLoading(false))
   }, [user])
@@ -335,7 +339,8 @@ export default function DashboardPage() {
       router.push(`/doc/${data.id}${template.id === 'blank' ? '' : `?template=${template.id}`}`)
       closeMobileNav()
     } catch (error) {
-      notify.error(error instanceof Error ? error.message : 'Failed to create document.')
+      console.error(error)
+      notify.error('Could not create document. Check the document database setup and try again.')
     } finally {
       setCreatingId(null)
     }
@@ -347,7 +352,7 @@ export default function DashboardPage() {
     const nextTitle = renameValue.trim()
     if (!nextTitle) { setRenaming(null); return }
     const { error } = await createClient().from('documents').update({ title: nextTitle }).eq('id', docId)
-    if (error) { notify.error(error.message); return }
+    if (error) { notify.error('Could not rename document. Please try again.'); return }
     setDocuments((docs) => docs.map((doc) => doc.id === docId ? { ...doc, title: nextTitle } : doc))
     setRenaming(null)
   }
@@ -356,7 +361,7 @@ export default function DashboardPage() {
     if (permanently) {
       if (!confirm('Delete this document permanently?')) return
       const { error } = await createClient().from('documents').delete().eq('id', docId)
-      if (error) { notify.error(error.message); return }
+      if (error) { notify.error('Could not delete document. Please try again.'); return }
       setDocuments((docs) => docs.filter((doc) => doc.id !== docId))
       saveTrashed(trashedDocs.filter(id => id !== docId))
       notify.success('Document deleted permanently')
@@ -522,6 +527,13 @@ export default function DashboardPage() {
             >
               <Menu className="h-5 w-5" />
             </button>
+            <Link
+              href="/"
+              className="hidden items-center gap-2 rounded-full border border-[#ebe2d4] bg-white px-3 py-2 text-sm font-semibold text-[#6b5f52] transition hover:border-[#d9c7ab] hover:text-[#9a5b2b] md:inline-flex"
+            >
+              <Home className="h-4 w-4" />
+              Home
+            </Link>
             <div className="relative hidden max-w-xl flex-1 sm:block">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5f6368]" />
               <input
@@ -701,7 +713,7 @@ export default function DashboardPage() {
 
             {/* ── Recent Documents ── */}
             {loadingError && (
-              <div className="rounded-2xl border border-[#f9d7d5] bg-[#fce8e6] px-4 py-3 text-sm text-[#b3261e]">
+              <div className="rounded-2xl border border-[#eadfce] bg-[#fbf7f0] px-4 py-3 text-sm text-[#6b5f52]">
                 {loadingError}
               </div>
             )}
