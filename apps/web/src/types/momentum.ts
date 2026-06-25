@@ -21,6 +21,7 @@ export const AI_CAPABILITY_VALUES = [
   'recovery_plan',
   'goal_simulation',
   'risk_explain',
+  'momentum_flow',
 ] as const
 
 export type AiCapability = (typeof AI_CAPABILITY_VALUES)[number]
@@ -84,4 +85,3 @@ export type AiRunCitation = {
   metadata: Record<string, unknown>
   sort_order: number
 }
-

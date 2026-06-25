@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, CalendarDays, Loader2, Plus, Telescope, Users } from 'lucide-react'
 
+import { MomentumFlowPanel } from '@/components/momentum-flow/MomentumFlowPanel'
 import { RecoveryFlow } from '@/components/recovery/RecoveryFlow'
 import { SimulationModal } from '@/components/simulation/SimulationModal'
 import { TaskDrawer } from '@/components/tasks/TaskDrawer'
@@ -228,6 +229,7 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
                 <div id="recovery-planner">
                   <RecoveryFlow projectId={projectId} initialPlans={recoveryPlans} canWrite={canWrite} />
                 </div>
+                <MomentumFlowPanel projectId={projectId} projectTitle={project.title} compact />
                 <WorkBreakdownPanel projectId={projectId} projectTitle={project.title} canWrite={canWrite} onTasksCreated={refresh} />
                 <TaskExtractionPanel projectId={projectId} canWrite={canWrite} onTasksCreated={refresh} />
                 <TaskList tasks={tasks} canWrite={canWrite} onEdit={openEditTask} />
