@@ -3,6 +3,7 @@ import 'server-only'
 import { getProject } from '@/lib/momentum/projects/project-service'
 import { listProjectTasks } from '@/lib/momentum/tasks/task-service'
 import { validateOptionalUuid, validateRequiredUuid } from '@/lib/momentum/validation/schemas'
+import { withCitations, type AiCitationSet } from '@/lib/momentum/ai/gateway'
 import type { AiCitationInput } from '@/lib/momentum/ai/run-logger'
 import type { ProjectDetail } from '@/types/project'
 import type { TaskItem } from '@/types/task'
@@ -19,6 +20,7 @@ export type ProjectAiContext = {
     >
   >
   sources: AiContextSource[]
+  citations: AiCitationSet
   summary: string
 }
 
@@ -91,6 +93,7 @@ export async function buildProjectContext(input: BuildProjectContextInput): Prom
       completed_at: task.completed_at,
     })),
     sources,
+    citations: withCitations(sources),
     summary: `${project.title}: ${openTasks} open task(s), ${overdueTasks} overdue task(s), ${tasks.length} total task(s).`,
   }
 }

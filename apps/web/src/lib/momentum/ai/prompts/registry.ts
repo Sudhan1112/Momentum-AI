@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { MomentumError } from '@/lib/momentum/errors'
 import type { AiCapability } from '@/types/momentum'
 
 import { MORNING_BRIEF_PROMPT_V1 } from './morning-brief.v1'
@@ -19,6 +20,14 @@ const PROMPTS: Partial<Record<AiCapability, PromptDefinition>> = {
 
 export function getPromptDefinition(capability: AiCapability) {
   return PROMPTS[capability] ?? null
+}
+
+export function requirePromptDefinition(capability: AiCapability) {
+  const definition = getPromptDefinition(capability)
+  if (!definition) {
+    throw new MomentumError(`Prompt is not registered for AI capability: ${capability}`, 500)
+  }
+  return definition
 }
 
 export function buildPromptText(definition: PromptDefinition, contextJson: string, userInstruction: string) {

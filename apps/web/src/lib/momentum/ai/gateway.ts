@@ -9,8 +9,8 @@ import {
   type AiCitationInput,
   type AiRunWithCitations,
 } from '@/lib/momentum/ai/run-logger'
+import type { PromptDefinition } from '@/lib/momentum/ai/prompts/registry'
 import { validateAiCapability } from '@/lib/momentum/validation/schemas'
-import type { AiCapability } from '@/types/momentum'
 
 type GeminiUsageMetadata = {
   promptTokenCount?: number
@@ -29,15 +29,25 @@ type GeminiResponse = {
   }
 }
 
-export type AiGatewayInput = {
+export type AiCitationSet =
+  | {
+      items: [AiCitationInput, ...AiCitationInput[]]
+      citationless?: false
+    }
+  | {
+      items: []
+      citationless: true
+      reason: string
+    }
+
+type ExecuteGeminiInput = {
   userId: string
   projectId?: string | null
   taskId?: string | null
-  capability: AiCapability
-  prompt: string
-  promptVersion: string
+  promptDefinition: PromptDefinition
+  promptText: string
   inputSummary: string
-  citations?: AiCitationInput[]
+  citations: AiCitationSet
   model?: string
   temperature?: number
   maxOutputTokens?: number
@@ -54,6 +64,16 @@ export type AiGatewayResult = {
   }
 }
 
+export type AiTextCompletionInput = Omit<ExecuteGeminiInput, 'responseMimeType'>
+
+export type AiJsonCompletionInput = Omit<ExecuteGeminiInput, 'responseMimeType'> & {
+  schemaName?: string
+}
+
+export type AiJsonCompletionResult<T> = AiGatewayResult & {
+  json: T
+}
+
 const DEFAULT_MODEL = 'gemini-2.0-flash'
 
 function getGeminiKey() {
@@ -68,8 +88,31 @@ function extractText(response: GeminiResponse) {
   return response.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('').trim() ?? ''
 }
 
-export async function executeGeminiRun(input: AiGatewayInput): Promise<AiGatewayResult> {
-  const capability = validateAiCapability(input.capability)
+export function withCitations(items: AiCitationInput[]): AiCitationSet {
+  if (items.length === 0) {
+    throw new MomentumError('withCitations requires at least one citation', 500)
+  }
+  return { items: items as [AiCitationInput, ...AiCitationInput[]] }
+}
+
+export function intentionallyCitationless(reason: string): AiCitationSet {
+  const normalizedReason = reason.trim()
+  if (!normalizedReason) {
+    throw new MomentumError('Citationless AI calls must include a reason', 500)
+  }
+  return { items: [], citationless: true, reason: normalizedReason }
+}
+
+function flattenCitations(citations: AiCitationSet) {
+  if (citations.items.length === 0 && !citations.citationless) {
+    throw new MomentumError('Empty AI citations must be marked citationless with a reason', 500)
+  }
+  return citations.items
+}
+
+async function executeGeminiRun(input: ExecuteGeminiInput): Promise<AiGatewayResult> {
+  const capability = validateAiCapability(input.promptDefinition.capability)
+  const citations = flattenCitations(input.citations)
   assertAiRateLimit(input.userId, capability)
 
   const model = getModel(input.model)
@@ -80,7 +123,7 @@ export async function executeGeminiRun(input: AiGatewayInput): Promise<AiGateway
     taskId: input.taskId ?? null,
     capability,
     model,
-    promptVersion: input.promptVersion,
+    promptVersion: input.promptDefinition.version,
     inputSummary: input.inputSummary,
   })
 
@@ -89,7 +132,7 @@ export async function executeGeminiRun(input: AiGatewayInput): Promise<AiGateway
     const failed = await failAiRun(run.id, {
       errorMessage: 'GEMINI_API_KEY is not configured',
       latencyMs: Date.now() - startedAt,
-      citations: input.citations,
+      citations,
     })
     throw new MomentumError(`Gemini is not configured for AI run ${failed.id}`, 503)
   }
@@ -106,7 +149,7 @@ export async function executeGeminiRun(input: AiGatewayInput): Promise<AiGateway
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
       body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: input.prompt }] }],
+        contents: [{ role: 'user', parts: [{ text: input.promptText }] }],
         generationConfig: {
           temperature: input.temperature ?? 0.2,
           maxOutputTokens: input.maxOutputTokens ?? 1024,
@@ -134,7 +177,7 @@ export async function executeGeminiRun(input: AiGatewayInput): Promise<AiGateway
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
       latencyMs: Date.now() - startedAt,
-      citations: input.citations,
+      citations,
     })
 
     return { run: completed, text, usage }
@@ -143,10 +186,33 @@ export async function executeGeminiRun(input: AiGatewayInput): Promise<AiGateway
     const failed = await failAiRun(run.id, {
       errorMessage: message,
       latencyMs: Date.now() - startedAt,
-      citations: input.citations,
+      citations,
     })
     throw new MomentumError(`AI run ${failed.id} failed: ${message}`, 502)
   } finally {
     clearTimeout(timeout)
+  }
+}
+
+export async function completeText(input: AiTextCompletionInput): Promise<AiGatewayResult> {
+  return executeGeminiRun({
+    ...input,
+    responseMimeType: 'text/plain',
+  })
+}
+
+export async function completeJson<T = unknown>(input: AiJsonCompletionInput): Promise<AiJsonCompletionResult<T>> {
+  const result = await executeGeminiRun({
+    ...input,
+    responseMimeType: 'application/json',
+  })
+
+  try {
+    return {
+      ...result,
+      json: JSON.parse(result.text) as T,
+    }
+  } catch {
+    throw new MomentumError(`AI JSON response was invalid${input.schemaName ? ` for ${input.schemaName}` : ''}`, 502)
   }
 }
