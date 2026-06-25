@@ -7,6 +7,7 @@ import { ArrowLeft, CalendarDays, Loader2, Plus, Users } from 'lucide-react'
 
 import { RecoveryFlow } from '@/components/recovery/RecoveryFlow'
 import { TaskDrawer } from '@/components/tasks/TaskDrawer'
+import { TaskExtractionPanel } from '@/components/tasks/TaskExtractionPanel'
 import { TaskList } from '@/components/tasks/TaskList'
 import { getResponseErrorMessage, readResponsePayload } from '@/lib/http'
 import { notify } from '@/lib/notify'
@@ -212,6 +213,7 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
             <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
               <div className="space-y-6">
                 <RecoveryFlow projectId={projectId} initialPlans={recoveryPlans} canWrite={canWrite} />
+                <TaskExtractionPanel projectId={projectId} canWrite={canWrite} onTasksCreated={refresh} />
                 <TaskList tasks={tasks} canWrite={canWrite} onEdit={openEditTask} />
               </div>
 

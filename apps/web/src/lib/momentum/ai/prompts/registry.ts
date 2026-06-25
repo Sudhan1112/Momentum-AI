@@ -3,6 +3,7 @@ import 'server-only'
 import { MomentumError } from '@/lib/momentum/errors'
 import type { AiCapability } from '@/types/momentum'
 
+import { EXTRACT_TASKS_PROMPT_V1 } from './extract-tasks.v1'
 import { MORNING_BRIEF_PROMPT_V1 } from './morning-brief.v1'
 import { RISK_EXPLAIN_PROMPT_V1 } from './risk-explain.v1'
 
@@ -14,6 +15,7 @@ export type PromptDefinition = {
 }
 
 const PROMPTS: Partial<Record<AiCapability, PromptDefinition>> = {
+  extract_tasks: EXTRACT_TASKS_PROMPT_V1,
   morning_brief: MORNING_BRIEF_PROMPT_V1,
   risk_explain: RISK_EXPLAIN_PROMPT_V1,
 }
