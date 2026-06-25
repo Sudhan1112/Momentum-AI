@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CalendarDays, Loader2, Plus, Users } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Loader2, Plus, Telescope, Users } from 'lucide-react'
 
 import { RecoveryFlow } from '@/components/recovery/RecoveryFlow'
+import { SimulationModal } from '@/components/simulation/SimulationModal'
 import { TaskDrawer } from '@/components/tasks/TaskDrawer'
 import { TaskExtractionPanel } from '@/components/tasks/TaskExtractionPanel'
 import { TaskList } from '@/components/tasks/TaskList'
@@ -46,6 +47,7 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
   const [loading, setLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskItem | null>(null)
+  const [simulationOpen, setSimulationOpen] = useState(false)
 
   const canWrite = useMemo(() => (role ? WRITE_ROLES.has(role) : false), [role])
 
@@ -176,16 +178,26 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
                     {project.description || project.goal_summary || 'This project does not have a brief yet.'}
                   </p>
                 </div>
-                {canWrite && (
+                <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
                   <button
                     type="button"
-                    onClick={openNewTask}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#9a5b2b] px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-[#854d24]"
+                    onClick={() => setSimulationOpen(true)}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#d8c5aa] bg-white px-5 py-3 text-sm font-bold text-[#6b4a30] shadow-sm transition hover:border-[#9a5b2b]"
                   >
-                    <Plus className="h-4 w-4" />
-                    New task
+                    <Telescope className="h-4 w-4" />
+                    Simulate goal
                   </button>
-                )}
+                  {canWrite && (
+                    <button
+                      type="button"
+                      onClick={openNewTask}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#9a5b2b] px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-[#854d24]"
+                    >
+                      <Plus className="h-4 w-4" />
+                      New task
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="mt-7 grid gap-3 border-t border-[#eadfcd] pt-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -213,7 +225,9 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
 
             <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
               <div className="space-y-6">
-                <RecoveryFlow projectId={projectId} initialPlans={recoveryPlans} canWrite={canWrite} />
+                <div id="recovery-planner">
+                  <RecoveryFlow projectId={projectId} initialPlans={recoveryPlans} canWrite={canWrite} />
+                </div>
                 <WorkBreakdownPanel projectId={projectId} projectTitle={project.title} canWrite={canWrite} onTasksCreated={refresh} />
                 <TaskExtractionPanel projectId={projectId} canWrite={canWrite} onTasksCreated={refresh} />
                 <TaskList tasks={tasks} canWrite={canWrite} onEdit={openEditTask} />
@@ -248,6 +262,16 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
         onClose={() => setDrawerOpen(false)}
         onSaved={handleTaskSaved}
       />
+      {project && (
+        <SimulationModal
+          open={simulationOpen}
+          projectId={projectId}
+          projectTitle={project.title}
+          targetDeadline={project.target_deadline}
+          tasks={tasks}
+          onClose={() => setSimulationOpen(false)}
+        />
+      )}
     </main>
   )
 }
