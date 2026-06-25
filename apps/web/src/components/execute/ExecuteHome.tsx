@@ -12,6 +12,7 @@ import { TodayList } from '@/components/execute/TodayList'
 import { WorkspaceHealthIndicator } from '@/components/execute/WorkspaceHealthIndicator'
 import { AppShell } from '@/components/shell/AppShell'
 import { getResponseErrorMessage, readResponsePayload } from '@/lib/http'
+import type { MomentumDailyBrief } from '@/lib/momentum/ai/capabilities/morning-brief'
 import type { WorkspaceExecutionScore } from '@/lib/momentum/execution-score'
 import type { WorkspaceHealthSnapshot } from '@/lib/momentum/health-snapshot'
 import type { PlannerToday } from '@/lib/momentum/planner/planner-service'
@@ -48,6 +49,7 @@ type MomentumExecutionResponse = {
 export function ExecuteHome() {
   const [plan, setPlan] = useState<PlannerToday>(EMPTY_PLAN)
   const [intelligence, setIntelligence] = useState<MomentumExecutionResponse | null>(null)
+  const [dailyBrief, setDailyBrief] = useState<MomentumDailyBrief | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -56,12 +58,14 @@ export function ExecuteHome() {
     setError(null)
 
     try {
-      const [plannerResponse, scoreResponse] = await Promise.all([
+      const [plannerResponse, scoreResponse, briefResponse] = await Promise.all([
         fetch('/api/planner/today', { cache: 'no-store' }),
         fetch('/api/momentum/execution-score', { cache: 'no-store' }),
+        fetch('/api/momentum/brief', { cache: 'no-store' }),
       ])
       const plannerPayload = await readResponsePayload<PlannerToday | { error: string }>(plannerResponse)
       const scorePayload = await readResponsePayload<MomentumExecutionResponse | { error: string }>(scoreResponse)
+      const briefPayload = await readResponsePayload<MomentumDailyBrief | { error: string }>(briefResponse)
 
       if (!plannerResponse.ok) {
         throw new Error(getResponseErrorMessage(plannerPayload, 'Could not load today.'))
@@ -73,9 +77,11 @@ export function ExecuteHome() {
 
       setPlan(plannerPayload as PlannerToday)
       setIntelligence(scorePayload as MomentumExecutionResponse)
+      setDailyBrief(briefResponse.ok ? (briefPayload as MomentumDailyBrief) : null)
     } catch (caught) {
       setPlan(EMPTY_PLAN)
       setIntelligence(null)
+      setDailyBrief(null)
       setError(caught instanceof Error ? caught.message : 'Could not load today.')
     } finally {
       setLoading(false)
@@ -113,7 +119,7 @@ export function ExecuteHome() {
             </div>
           ) : (
             <div className="space-y-6">
-              <BriefHero brief={plan.brief} />
+              <BriefHero brief={dailyBrief ?? plan.brief} />
               {intelligence && (
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
                   <section className="rounded-2xl border border-[#eadfce] bg-white/76 p-6 shadow-[0_18px_44px_rgba(83,67,48,0.06)]">
