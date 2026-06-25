@@ -9,6 +9,7 @@ import { RecoveryFlow } from '@/components/recovery/RecoveryFlow'
 import { TaskDrawer } from '@/components/tasks/TaskDrawer'
 import { TaskExtractionPanel } from '@/components/tasks/TaskExtractionPanel'
 import { TaskList } from '@/components/tasks/TaskList'
+import { WorkBreakdownPanel } from '@/components/tasks/WorkBreakdownPanel'
 import { getResponseErrorMessage, readResponsePayload } from '@/lib/http'
 import { notify } from '@/lib/notify'
 import { createClient } from '@/lib/supabase/client'
@@ -213,6 +214,7 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
             <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
               <div className="space-y-6">
                 <RecoveryFlow projectId={projectId} initialPlans={recoveryPlans} canWrite={canWrite} />
+                <WorkBreakdownPanel projectId={projectId} projectTitle={project.title} canWrite={canWrite} onTasksCreated={refresh} />
                 <TaskExtractionPanel projectId={projectId} canWrite={canWrite} onTasksCreated={refresh} />
                 <TaskList tasks={tasks} canWrite={canWrite} onEdit={openEditTask} />
               </div>
