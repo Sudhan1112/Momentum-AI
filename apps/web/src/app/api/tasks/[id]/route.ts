@@ -45,14 +45,17 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     const parsed = await parseJsonObject(req)
     if (!parsed.ok) return parsed.response
 
-    const task = await updateTask(params.id, parsed.body)
+    const changeReason = typeof parsed.body.change_reason === 'string' ? parsed.body.change_reason : null
+    const changes = { ...parsed.body }
+    delete changes.change_reason
+    const task = await updateTask(params.id, session.data.user.id, changes, { reason: changeReason })
     return NextResponse.json({ ...task, current_user_role: access.data.role })
   } catch (error) {
     return jsonMomentumError(error)
   }
 }
 
-export async function DELETE(_req: Request, { params }: RouteContext) {
+export async function DELETE(req: Request, { params }: RouteContext) {
   try {
     const session = await requireSession()
     if (!session.ok) return session.response
@@ -61,7 +64,8 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
     if (!access.ok) return access.response
     if (!canWrite(access.data.role)) return jsonError('Forbidden', 403)
 
-    const result = await deleteTask(params.id)
+    const reason = new URL(req.url).searchParams.get('reason')
+    const result = await deleteTask(params.id, session.data.user.id, { reason })
     return NextResponse.json(result)
   } catch (error) {
     return jsonMomentumError(error)

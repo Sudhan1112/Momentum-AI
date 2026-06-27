@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { badRequest, notFound } from '@/lib/momentum/errors'
+import { badRequest, MomentumError, notFound } from '@/lib/momentum/errors'
 import { parseTimestamp, toDateOnly } from '@/lib/momentum/date'
 import { ensureAssignableProjectMember } from '@/lib/momentum/projects/member-service'
 import {
@@ -15,6 +15,12 @@ import {
 } from '@/lib/momentum/validation/schemas'
 import type { CreateTaskInput, Task, TaskDetail, TaskItem, UpdateTaskInput } from '@/types/task'
 import type { ProfileSummary } from '@/types/project'
+import {
+  normalizeEventJournalError,
+  taskCreatedEvent,
+  taskDeletedEvent,
+  taskUpdatedEvents,
+} from '@/lib/momentum/memory/event-journal'
 
 type TaskRow = Task
 
@@ -130,23 +136,27 @@ export async function createTask(projectId: string, userId: string, input: Creat
 
   const payload = await taskPayload(projectId, input)
   if (!payload.title) throw badRequest('title is required')
+  const normalizedPayload = {
+    ...payload,
+    status: payload.status ?? 'todo',
+    priority: payload.priority ?? 'medium',
+  }
+  const events = taskCreatedEvent(normalizedPayload as Parameters<typeof taskCreatedEvent>[0])
 
   const admin = createAdminClient()
-  const { data, error } = await admin
-    .from('tasks')
-    .insert({
-      ...payload,
-      project_id: projectId,
-      created_by: userId,
-      status: payload.status ?? 'todo',
-      priority: payload.priority ?? 'medium',
-    })
-    .select('*')
-    .single()
+  const { data, error } = await admin.rpc('create_task_with_events', {
+    p_project_id: projectId,
+    p_actor_id: userId,
+    p_payload: normalizedPayload,
+    p_mutation_id: crypto.randomUUID(),
+    p_events: events,
+  })
 
-  if (error) throw new Error(error.message)
+  if (error) throw normalizeEventJournalError(new Error(error.message))
+  const row = (Array.isArray(data) ? data[0] : data) as TaskRow | null
+  if (!row?.id) throw new Error('Task event mutation returned no task')
 
-  return getTask(data.id)
+  return getTask(row.id)
 }
 
 export async function getTask(taskId: string): Promise<TaskDetail> {
@@ -173,28 +183,74 @@ export async function getTask(taskId: string): Promise<TaskDetail> {
   }
 }
 
-export async function updateTask(taskId: string, input: UpdateTaskInput): Promise<TaskDetail> {
+export async function updateTask(
+  taskId: string,
+  userId: string,
+  input: UpdateTaskInput,
+  options: { reason?: string | null } = {}
+): Promise<TaskDetail> {
   validateRequiredUuid(taskId, 'task_id')
+  validateRequiredUuid(userId, 'user_id')
 
-  const existing = await getTask(taskId)
+  let existing = await getTask(taskId)
   const payload = await taskPayload(existing.project_id, input, existing.project.target_deadline)
   if (Object.keys(payload).length === 0) throw badRequest('No task fields provided')
 
-  const admin = createAdminClient()
-  const { error } = await admin.from('tasks').update(payload).eq('id', taskId)
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const nextTask = { ...existing, ...payload }
+    const events = taskUpdatedEvents(existing, nextTask, options.reason)
+    if (events.length === 0) return existing
 
-  if (error) throw new Error(error.message)
+    const admin = createAdminClient()
+    const { error } = await admin.rpc('update_task_with_events', {
+      p_task_id: taskId,
+      p_actor_id: userId,
+      p_expected_updated_at: existing.updated_at,
+      p_payload: payload,
+      p_mutation_id: crypto.randomUUID(),
+      p_events: events,
+    })
+
+    if (!error) break
+    const normalized = normalizeEventJournalError(new Error(error.message))
+    if (normalized instanceof MomentumError && normalized.code === 'MUTATION_CONFLICT' && attempt === 0) {
+      existing = await getTask(taskId)
+      continue
+    }
+    throw normalized
+  }
+
   return getTask(taskId)
 }
 
-export async function deleteTask(taskId: string) {
+export async function deleteTask(taskId: string, userId: string, options: { reason?: string | null } = {}) {
   validateRequiredUuid(taskId, 'task_id')
+  validateRequiredUuid(userId, 'user_id')
+  let existing = await getTask(taskId)
 
-  const admin = createAdminClient()
-  const { error, count } = await admin.from('tasks').delete({ count: 'exact' }).eq('id', taskId)
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const events = taskDeletedEvent(existing, options.reason)
+    const admin = createAdminClient()
+    const { data, error } = await admin.rpc('delete_task_with_events', {
+      p_task_id: taskId,
+      p_actor_id: userId,
+      p_expected_updated_at: existing.updated_at,
+      p_mutation_id: crypto.randomUUID(),
+      p_events: events,
+    })
 
-  if (error) throw new Error(error.message)
-  if (count === 0) throw notFound('Task not found')
+    if (!error) {
+      if (!data) throw notFound('Task not found')
+      return { success: true }
+    }
+
+    const normalized = normalizeEventJournalError(new Error(error.message))
+    if (normalized instanceof MomentumError && normalized.code === 'MUTATION_CONFLICT' && attempt === 0) {
+      existing = await getTask(taskId)
+      continue
+    }
+    throw normalized
+  }
 
   return { success: true }
 }

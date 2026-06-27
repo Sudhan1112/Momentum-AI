@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { badRequest, notFound } from '@/lib/momentum/errors'
+import { badRequest, MomentumError, notFound } from '@/lib/momentum/errors'
 import { isOverdueTimestamp, timestampMs } from '@/lib/momentum/date'
 import {
   validateExecutionTargetScore,
@@ -11,7 +11,12 @@ import {
   validateProjectTitle,
   validateRequiredUuid,
 } from '@/lib/momentum/validation/schemas'
-import { bootstrapOwnerMember, listProjectMembers } from '@/lib/momentum/projects/member-service'
+import { listProjectMembers } from '@/lib/momentum/projects/member-service'
+import {
+  normalizeEventJournalError,
+  projectCreatedEvent,
+  projectUpdatedEvents,
+} from '@/lib/momentum/memory/event-journal'
 import type {
   CreateProjectInput,
   ProfileSummary,
@@ -145,18 +150,26 @@ export async function createProject(userId: string, input: CreateProjectInput): 
 
   const payload = projectPayload(input)
   if (!payload.title) throw badRequest('title is required')
+  const mutationId = crypto.randomUUID()
+  const eventProject = {
+    ...payload,
+    status: payload.status ?? 'active',
+  } as Parameters<typeof projectCreatedEvent>[0]
+  const events = projectCreatedEvent(eventProject)
 
   const admin = createAdminClient()
-  const { data, error } = await admin
-    .from('projects')
-    .insert({ ...payload, owner_id: userId })
-    .select('*')
-    .single()
+  const { data, error } = await admin.rpc('create_project_with_events', {
+    p_actor_id: userId,
+    p_payload: payload,
+    p_mutation_id: mutationId,
+    p_events: events,
+  })
 
-  if (error) throw new Error(error.message)
+  if (error) throw normalizeEventJournalError(new Error(error.message))
+  const row = (Array.isArray(data) ? data[0] : data) as ProjectRow | null
+  if (!row?.id) throw new Error('Project event mutation returned no project')
 
-  await bootstrapOwnerMember(data.id, userId)
-  return getProject(data.id)
+  return getProject(row.id)
 }
 
 export async function getProject(projectId: string): Promise<ProjectDetail> {
@@ -172,15 +185,42 @@ export async function getProject(projectId: string): Promise<ProjectDetail> {
   return project
 }
 
-export async function updateProject(projectId: string, input: UpdateProjectInput): Promise<ProjectDetail> {
+export async function updateProject(
+  projectId: string,
+  userId: string,
+  input: UpdateProjectInput,
+  options: { reason?: string | null } = {}
+): Promise<ProjectDetail> {
   validateRequiredUuid(projectId, 'project_id')
+  validateRequiredUuid(userId, 'user_id')
   const payload = projectPayload(input)
   if (Object.keys(payload).length === 0) throw badRequest('No project fields provided')
+  let existing = await getProject(projectId)
 
-  const admin = createAdminClient()
-  const { error } = await admin.from('projects').update(payload).eq('id', projectId)
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const nextProject = { ...existing, ...payload }
+    const events = projectUpdatedEvents(existing, nextProject, options.reason)
+    if (events.length === 0) return existing
 
-  if (error) throw new Error(error.message)
+    const admin = createAdminClient()
+    const { error } = await admin.rpc('update_project_with_events', {
+      p_project_id: projectId,
+      p_actor_id: userId,
+      p_expected_updated_at: existing.updated_at,
+      p_payload: payload,
+      p_mutation_id: crypto.randomUUID(),
+      p_events: events,
+    })
+
+    if (!error) break
+    const normalized = normalizeEventJournalError(new Error(error.message))
+    if (normalized instanceof MomentumError && normalized.code === 'MUTATION_CONFLICT' && attempt === 0) {
+      existing = await getProject(projectId)
+      continue
+    }
+    throw normalized
+  }
+
   return getProject(projectId)
 }
 

@@ -37,7 +37,10 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     const parsed = await parseJsonObject(req)
     if (!parsed.ok) return parsed.response
 
-    const project = await updateProject(params.id, parsed.body)
+    const changeReason = typeof parsed.body.change_reason === 'string' ? parsed.body.change_reason : null
+    const changes = { ...parsed.body }
+    delete changes.change_reason
+    const project = await updateProject(params.id, session.data.user.id, changes, { reason: changeReason })
     return NextResponse.json({ ...project, current_user_role: access.data.role })
   } catch (error) {
     return jsonMomentumError(error)
