@@ -61,6 +61,11 @@ export type PlannerToday = {
   }
 }
 
+export type PlannerProjectData = {
+  project: ProjectListItem
+  tasks: TaskItem[]
+}
+
 const OPEN_STATUSES = new Set<TaskStatus>(['backlog', 'todo', 'in_progress', 'blocked'])
 const PRIORITY_WEIGHT: Record<TaskPriority, number> = {
   urgent: 0,
@@ -156,19 +161,11 @@ function buildNarrative(metrics: PlannerToday['brief']['metrics']) {
   return 'No urgent task pressure today. Use the next action to move one active project forward.'
 }
 
-export async function getPlannerToday(userId: string): Promise<PlannerToday> {
-  const projects = await listProjectsForUser(userId)
-  const today = new Date()
-
-  const tasksByProject = await Promise.all(
-    projects.map(async (project) => {
-      const tasks = await listProjectTasks(project.id)
-      return {
-        project,
-        tasks: tasks.map((task) => toPlannerTask(task, project.title, today)),
-      }
-    })
-  )
+export function buildPlannerTodayFromData(entries: PlannerProjectData[], today = new Date()): PlannerToday {
+  const tasksByProject = entries.map(({ project, tasks }) => ({
+    project,
+    tasks: tasks.map((task) => toPlannerTask(task, project.title, today)),
+  }))
 
   const tasks = tasksByProject.flatMap((entry) => entry.tasks)
   const openTasks = tasks.filter((task) => OPEN_STATUSES.has(task.status))
@@ -184,7 +181,7 @@ export async function getPlannerToday(userId: string): Promise<PlannerToday> {
     overdue: overdue.length,
     blocked: blocked.length,
     completed: tasks.filter((task) => task.status === 'done').length,
-    active_projects: projects.filter((project) => project.status === 'active').length,
+    active_projects: entries.filter(({ project }) => project.status === 'active').length,
   }
 
   return {
@@ -203,4 +200,16 @@ export async function getPlannerToday(userId: string): Promise<PlannerToday> {
       metrics,
     },
   }
+}
+
+export async function getPlannerToday(userId: string): Promise<PlannerToday> {
+  const projects = await listProjectsForUser(userId)
+  const entries = await Promise.all(
+    projects.map(async (project) => ({
+      project,
+      tasks: await listProjectTasks(project.id),
+    }))
+  )
+
+  return buildPlannerTodayFromData(entries)
 }

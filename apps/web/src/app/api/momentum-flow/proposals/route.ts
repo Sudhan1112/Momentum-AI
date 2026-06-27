@@ -4,7 +4,7 @@ import { parseJsonObject } from '@/lib/api-route-errors'
 import { assertProjectMember, requireSession } from '@/lib/momentum/authz'
 import { jsonMomentumError } from '@/lib/momentum/errors'
 import { normalizeMomentumFlowError } from '@/lib/momentum/scheduler/momentum-flow-readiness'
-import { generateMomentumFlowProposal } from '@/lib/momentum/scheduler/momentum-flow-service'
+import { generateMomentumExecutionPlan } from '@/lib/momentum/scheduler/execution-intelligence-service'
 
 export async function POST(req: Request) {
   try {
@@ -20,10 +20,9 @@ export async function POST(req: Request) {
       if (!access.ok) return access.response
     }
 
-    const proposal = await generateMomentumFlowProposal(session.data.user.id, {
+    const proposal = await generateMomentumExecutionPlan(session.data.user.id, {
       projectId,
       scheduleDate: typeof parsed.body.schedule_date === 'string' ? parsed.body.schedule_date : null,
-      horizonDays: typeof parsed.body.horizon_days === 'number' ? parsed.body.horizon_days : null,
     })
 
     return NextResponse.json(proposal, { status: 201 })

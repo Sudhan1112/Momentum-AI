@@ -10,6 +10,7 @@ import { NextActionCard } from '@/components/execute/NextActionCard'
 import { ProjectsPulse } from '@/components/execute/ProjectsPulse'
 import { TodayList } from '@/components/execute/TodayList'
 import { WorkspaceHealthIndicator } from '@/components/execute/WorkspaceHealthIndicator'
+import { MomentumFlowPanel } from '@/components/momentum-flow/MomentumFlowPanel'
 import { AppShell } from '@/components/shell/AppShell'
 import { getResponseErrorMessage, readResponsePayload } from '@/lib/http'
 import type { MomentumDailyBrief } from '@/lib/momentum/ai/capabilities/morning-brief'
@@ -120,6 +121,7 @@ export function ExecuteHome() {
           ) : (
             <div className="space-y-6">
               <BriefHero brief={dailyBrief ?? plan.brief} />
+              <MomentumFlowPanel />
               {intelligence && (
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
                   <section className="rounded-2xl border border-[#eadfce] bg-white/76 p-6 shadow-[0_18px_44px_rgba(83,67,48,0.06)]">

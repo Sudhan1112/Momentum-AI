@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, CalendarDays, CircleDot, Loader2 } from 'lucide-react'
 
-import { MomentumFlowPanel } from '@/components/momentum-flow/MomentumFlowPanel'
 import { AppShell } from '@/components/shell/AppShell'
 import { getResponseErrorMessage, readResponsePayload } from '@/lib/http'
 import type { PlannerTask, PlannerToday } from '@/lib/momentum/planner/planner-service'
@@ -124,10 +123,6 @@ export default function PlannerPage() {
               )}
             </div>
           </section>
-
-          <div className="mt-8">
-            <MomentumFlowPanel />
-          </div>
 
           {loading ? (
             <div className="mt-8 flex min-h-72 items-center justify-center rounded-[28px] border border-[#eadfce] bg-white/70">

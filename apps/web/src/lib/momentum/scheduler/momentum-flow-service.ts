@@ -789,6 +789,9 @@ async function loadProposal(userId: string, proposalId: string) {
 
 export async function applyMomentumFlowProposal(userId: string, proposalId: string, input: ApplyMomentumFlowInput = {}) {
   const proposal = await loadProposal(userId, proposalId)
+  if (proposal.input_snapshot.engine === 'execution_intelligence_v1') {
+    throw badRequest('Execution guidance is advisory and cannot be applied')
+  }
   if (proposal.status !== 'proposed') throw badRequest('Only proposed Momentum Flow schedules can be applied')
 
   const selected = new Set(input.sessionIds?.length ? input.sessionIds : proposal.sessions.map((session) => session.id))

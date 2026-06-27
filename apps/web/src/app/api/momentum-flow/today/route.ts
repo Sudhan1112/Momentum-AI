@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { assertProjectMember, requireSession } from '@/lib/momentum/authz'
 import { jsonMomentumError } from '@/lib/momentum/errors'
 import { normalizeMomentumFlowError } from '@/lib/momentum/scheduler/momentum-flow-readiness'
-import { listMomentumFlowToday } from '@/lib/momentum/scheduler/momentum-flow-service'
+import { getLatestMomentumExecutionPlan } from '@/lib/momentum/scheduler/execution-intelligence-service'
 
 export async function GET(req: Request) {
   try {
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
       if (!access.ok) return access.response
     }
 
-    const today = await listMomentumFlowToday(session.data.user.id, projectId)
+    const today = await getLatestMomentumExecutionPlan(session.data.user.id, projectId)
     return NextResponse.json(today)
   } catch (error) {
     return jsonMomentumError(normalizeMomentumFlowError(error))
