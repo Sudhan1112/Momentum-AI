@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react'
 
+import { AskMomentumPanel } from '@/components/projects/AskMomentumPanel'
 import { getResponseErrorMessage, readResponsePayload } from '@/lib/http'
 import { notify } from '@/lib/notify'
 import type {
@@ -610,6 +611,8 @@ export function MomentumMemoryPanel({ projectId, canWrite, refreshKey }: Momentu
                   </div>
                 )}
               </div>
+
+              <AskMomentumPanel projectId={projectId} />
 
               <div className="rounded-[24px] border border-[#d8e8de] bg-[#f7fbf8] p-5">
                 <div className="flex items-center gap-2">

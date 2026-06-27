@@ -71,3 +71,32 @@ export type RecordProjectDecisionInput = {
   importance?: ProjectEventImportance
   evidence_event_ids?: string[]
 }
+
+export const ASK_MOMENTUM_INTENT_VALUES = [
+  'recent_changes',
+  'deadline_history',
+  'blockers',
+  'decisions',
+  'execution_score',
+  'generic',
+] as const
+
+export type AskMomentumIntent = (typeof ASK_MOMENTUM_INTENT_VALUES)[number]
+
+export type AskMomentumEvidenceItem = ProjectTimelineItem
+
+export type AskMomentumQueryInput = {
+  question: string
+}
+
+export type AskMomentumAnswer = {
+  question: string
+  intent: AskMomentumIntent
+  generated_at: string
+  mode: 'ai' | 'fallback'
+  fallback_reason: string | null
+  ai_run_id: string | null
+  summary: string
+  answer: string
+  evidence: AskMomentumEvidenceItem[]
+}
