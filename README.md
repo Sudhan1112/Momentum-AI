@@ -70,6 +70,7 @@ Technical articles live under **`docs/`** (this file is the **only** `README` at
 | Deep dive into the sync server (auth, payloads, errors) | [docs/sync-server-api.md](docs/sync-server-api.md) |
 | Learn tables, RLS, and the role matrix | [docs/data-model.md](docs/data-model.md) |
 | Read security notes, tradeoffs, hosting, AI attribution | [docs/security-and-operations.md](docs/security-and-operations.md) |
+| Run the manual release gate before shipping | [docs/release-candidate-checklist.md](docs/release-candidate-checklist.md) |
 | Open a PR (lint, secrets, SQL changes) | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) |
 | Debug “can’t connect” / rejection reasons | [docs/troubleshooting.md](docs/troubleshooting.md) |
 
@@ -111,6 +112,7 @@ docs/
 ├── sync-server-api.md
 ├── data-model.md
 ├── security-and-operations.md
+├── release-candidate-checklist.md
 ├── troubleshooting.md
 ├── CONTRIBUTING.md
 └── web-nextjs-notes.md
