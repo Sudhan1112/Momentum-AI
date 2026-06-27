@@ -3,8 +3,8 @@ import 'server-only'
 import type { ExecutionScore } from '@/lib/momentum/execution-score'
 import type { ProjectDetail } from '@/types/project'
 import type { TaskItem } from '@/types/task'
+import { remainingCalendarDays } from '@/lib/momentum/date'
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000
 const DEFAULT_DAILY_CAPACITY_MINUTES = 240
 
 function clamp(value: number, min = 0, max = 100) {
@@ -16,9 +16,7 @@ function openTasks(tasks: TaskItem[]) {
 }
 
 export function remainingWorkDays(project: ProjectDetail, now = new Date()) {
-  if (!project.target_deadline) return 7
-  const deadline = new Date(project.target_deadline)
-  return Math.max(1, Math.ceil((deadline.getTime() - now.getTime()) / MS_PER_DAY))
+  return remainingCalendarDays(project.target_deadline, now, 7)
 }
 
 export function remainingWorkMinutes(tasks: TaskItem[]) {

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { parseJsonObject } from '@/lib/api-route-errors'
 import { assertProjectMember, requireSession } from '@/lib/momentum/authz'
 import { jsonMomentumError } from '@/lib/momentum/errors'
+import { normalizeMomentumFlowError } from '@/lib/momentum/scheduler/momentum-flow-readiness'
 import { generateMomentumFlowProposal } from '@/lib/momentum/scheduler/momentum-flow-service'
 
 export async function POST(req: Request) {
@@ -27,6 +28,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json(proposal, { status: 201 })
   } catch (error) {
-    return jsonMomentumError(error)
+    return jsonMomentumError(normalizeMomentumFlowError(error))
   }
 }

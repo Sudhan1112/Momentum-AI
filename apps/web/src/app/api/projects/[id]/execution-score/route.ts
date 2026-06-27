@@ -4,6 +4,7 @@ import { assertProjectMember, requireSession } from '@/lib/momentum/authz'
 import { getProjectExecutionScore } from '@/lib/momentum/execution-score'
 import { calculateWorkspaceHealth } from '@/lib/momentum/health-snapshot'
 import { jsonMomentumError } from '@/lib/momentum/errors'
+import { evaluateRecoveryTriggers } from '@/lib/momentum/recovery-triggers'
 
 type RouteContext = {
   params: {
@@ -21,8 +22,9 @@ export async function GET(_req: Request, { params }: RouteContext) {
 
     const execution_score = await getProjectExecutionScore(params.id)
     const health = calculateWorkspaceHealth(execution_score)
+    const recovery_eligibility = evaluateRecoveryTriggers(execution_score, health)
 
-    return NextResponse.json({ execution_score, health })
+    return NextResponse.json({ execution_score, health, recovery_eligibility: { ...recovery_eligibility, health } })
   } catch (error) {
     return jsonMomentumError(error)
   }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { assertProjectMember, requireSession } from '@/lib/momentum/authz'
 import { jsonMomentumError } from '@/lib/momentum/errors'
+import { normalizeMomentumFlowError } from '@/lib/momentum/scheduler/momentum-flow-readiness'
 import { listMomentumFlowToday } from '@/lib/momentum/scheduler/momentum-flow-service'
 
 export async function GET(req: Request) {
@@ -19,6 +20,6 @@ export async function GET(req: Request) {
     const today = await listMomentumFlowToday(session.data.user.id, projectId)
     return NextResponse.json(today)
   } catch (error) {
-    return jsonMomentumError(error)
+    return jsonMomentumError(normalizeMomentumFlowError(error))
   }
 }

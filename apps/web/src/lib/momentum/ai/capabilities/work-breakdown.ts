@@ -1,12 +1,20 @@
 import 'server-only'
 
 import { executeAiJsonCapability, type AiExecutionContext, type AiFallbackReason } from '@/lib/momentum/ai/executor'
-import { buildProjectContext } from '@/lib/momentum/ai/context-builder'
+import { buildProjectContextFromData } from '@/lib/momentum/ai/context-builder'
 import { withCitations } from '@/lib/momentum/ai/gateway'
 import { badRequest } from '@/lib/momentum/errors'
 import { listProjectTasks } from '@/lib/momentum/tasks/task-service'
 import { validateRequiredUuid } from '@/lib/momentum/validation/schemas'
 import type { TaskItem, TaskPriority } from '@/types/task'
+import type { ProjectDetail } from '@/types/project'
+import { getProject } from '@/lib/momentum/projects/project-service'
+import {
+  cleanProposalText,
+  cleanProposalTitle,
+  normalizeProposalDate,
+  normalizeProposalKey,
+} from '@/lib/momentum/ai/proposal-normalization'
 
 const PRIORITIES: TaskPriority[] = ['low', 'medium', 'high', 'urgent']
 const MAX_GOAL_LENGTH = 2_000
@@ -52,6 +60,9 @@ type WorkBreakdownDeterministic = {
   goal: string
   project_id: string
   existing_titles: string[]
+  project_deadline: string | null
+  project: ProjectDetail
+  tasks: TaskItem[]
   fallback_milestones: WorkBreakdownMilestoneProposal[]
 }
 
@@ -79,29 +90,16 @@ type AiWorkBreakdownJson =
   | AiMilestoneProposal[]
 
 function normalizeTitle(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return normalizeProposalKey(value)
 }
 
 function cleanText(value: unknown, maxLength: number) {
   if (typeof value !== 'string') return null
-  const normalized = value.trim().replace(/\s+/g, ' ')
-  return normalized ? normalized.slice(0, maxLength) : null
+  return cleanProposalText(value, maxLength)
 }
 
 function cleanTitle(value: unknown, fallback = 'Execution step') {
-  if (typeof value !== 'string') return fallback
-  const normalized = value
-    .replace(/^[-*\u2022\d.)\]\[\sx]+/i, '')
-    .replace(/^(milestone|task|step)\s*\d*\s*[:,-]?\s*/i, '')
-    .trim()
-    .replace(/\s+/g, ' ')
-    .slice(0, 200)
-  return normalized || fallback
+  return cleanProposalTitle(value, /^(milestone|task|step)\s*\d*\s*[:,-]?\s*/i) ?? fallback
 }
 
 function normalizePriority(value: unknown, text = ''): TaskPriority {
@@ -117,19 +115,8 @@ function normalizePriority(value: unknown, text = ''): TaskPriority {
   return 'medium'
 }
 
-function dateOnly(date: Date) {
-  return date.toISOString().slice(0, 10)
-}
-
-function normalizeDueDate(value: unknown) {
-  if (typeof value !== 'string' || !value.trim()) return null
-  const trimmed = value.trim()
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed) && !Number.isNaN(new Date(`${trimmed}T00:00:00`).getTime())) {
-    return trimmed
-  }
-
-  const parsed = new Date(trimmed)
-  return Number.isNaN(parsed.getTime()) ? null : dateOnly(parsed)
+function normalizeDueDate(value: unknown, maxDate: string | null) {
+  return normalizeProposalDate(value, { maxDate })
 }
 
 function normalizeEstimate(value: unknown) {
@@ -199,12 +186,28 @@ function fallbackMilestones(goal: string, existingTitles: string[]): WorkBreakdo
     },
   ]
 
-  return candidates
+  const filtered = candidates
     .map((milestone) => ({
       ...milestone,
       tasks: milestone.tasks.filter((task) => !existing.has(normalizeTitle(task.title))),
     }))
     .filter((milestone) => milestone.tasks.length > 0)
+  if (filtered.length > 0) return filtered
+
+  const goalTitle = cleanProposalTitle(goal) ?? 'the project goal'
+  return [{
+    title: 'Advance the next execution step',
+    objective: `Keep ${goalTitle} moving with a concrete reviewable action.`,
+    tasks: [{
+      title: `Define the next step for ${goalTitle}`.slice(0, 200),
+      description: 'Choose the smallest concrete action that moves this goal forward.',
+      priority: 'medium',
+      due_date: null,
+      estimate_minutes: 45,
+      confidence: 0.55,
+      source: 'deterministic',
+    }],
+  }]
 }
 
 function validateInput(input: WorkBreakdownInput) {
@@ -220,19 +223,25 @@ function validateInput(input: WorkBreakdownInput) {
 
 async function buildDeterministic(input: WorkBreakdownInput): Promise<WorkBreakdownDeterministic> {
   const validated = validateInput(input)
-  const existingTasks = await listProjectTasks(validated.projectId)
+  const [existingTasks, project] = await Promise.all([
+    listProjectTasks(validated.projectId),
+    getProject(validated.projectId),
+  ])
   const existingTitles = existingTasks.map((task: TaskItem) => task.title)
 
   return {
     goal: validated.goal,
     project_id: validated.projectId,
     existing_titles: existingTitles,
+    project_deadline: project.target_deadline,
+    project,
+    tasks: existingTasks,
     fallback_milestones: fallbackMilestones(validated.goal, existingTitles),
   }
 }
 
 async function buildContext(deterministic: WorkBreakdownDeterministic): Promise<WorkBreakdownContext> {
-  const projectContext = await buildProjectContext({ projectId: deterministic.project_id, maxTasks: 12 })
+  const projectContext = buildProjectContextFromData(deterministic.project, deterministic.tasks, 12)
 
   return {
     contextJson: JSON.stringify(
@@ -269,7 +278,7 @@ function milestoneArray(json: AiWorkBreakdownJson): AiMilestoneProposal[] {
   return []
 }
 
-function normalizeTaskProposal(raw: AiTaskProposal, existing: Set<string>, seen: Set<string>): WorkBreakdownTaskProposal | null {
+function normalizeTaskProposal(raw: AiTaskProposal, existing: Set<string>, seen: Set<string>, maxDate: string | null): WorkBreakdownTaskProposal | null {
   const title = cleanTitle(raw.title, '')
   const key = normalizeTitle(title)
   if (title.length < 4 || !key || existing.has(key) || seen.has(key)) return null
@@ -283,14 +292,14 @@ function normalizeTaskProposal(raw: AiTaskProposal, existing: Set<string>, seen:
     title,
     description,
     priority: normalizePriority(raw.priority, `${title} ${description ?? ''}`),
-    due_date: normalizeDueDate(raw.due_date),
+    due_date: normalizeDueDate(raw.due_date, maxDate),
     estimate_minutes: normalizeEstimate(raw.estimate_minutes),
     confidence,
     source: 'ai',
   }
 }
 
-function normalizeAiMilestones(json: AiWorkBreakdownJson, existingTitles: string[]) {
+function normalizeAiMilestones(json: AiWorkBreakdownJson, existingTitles: string[], maxDate: string | null) {
   const rawMilestones = milestoneArray(json).slice(0, MAX_MILESTONES)
   const existing = new Set(existingTitles.map(normalizeTitle))
   const seen = new Set<string>()
@@ -304,7 +313,7 @@ function normalizeAiMilestones(json: AiWorkBreakdownJson, existingTitles: string
 
     for (const rawTask of rawTasks) {
       if (totalTasks >= MAX_TOTAL_TASKS || tasks.length >= MAX_TASKS_PER_MILESTONE) break
-      const task = normalizeTaskProposal(rawTask, existing, seen)
+      const task = normalizeTaskProposal(rawTask, existing, seen, maxDate)
       if (!task) {
         rejectedCount += 1
         continue
@@ -356,7 +365,7 @@ export async function generateWorkBreakdown(userId: string, input: WorkBreakdown
     }
   }
 
-  const normalized = normalizeAiMilestones(result.json, result.deterministic.existing_titles)
+  const normalized = normalizeAiMilestones(result.json, result.deterministic.existing_titles, result.deterministic.project_deadline)
   if (normalized.milestones.length === 0 && result.deterministic.fallback_milestones.length > 0) {
     return {
       milestones: result.deterministic.fallback_milestones,

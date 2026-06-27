@@ -49,6 +49,7 @@ export type TaskDetail = TaskItem & {
     title: string
     status: string
     owner_id: string
+    target_deadline: string | null
   }
 }
 
@@ -69,4 +70,3 @@ export type UpdateTaskInput = Partial<CreateTaskInput> & {
   completed_at?: string | null
 }
 import type { ProfileSummary } from '@/types/project'
-

@@ -2,9 +2,10 @@ import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { badRequest, notFound } from '@/lib/momentum/errors'
+import { isOverdueTimestamp, timestampMs } from '@/lib/momentum/date'
 import {
   validateExecutionTargetScore,
-  validateOptionalTimestamp,
+  validateProjectDeadline,
   validateProjectDescription,
   validateProjectStatus,
   validateProjectTitle,
@@ -58,14 +59,13 @@ async function getTaskCounts(projectIds: string[]) {
 
   if (error) throw new Error(error.message)
 
-  const now = Date.now()
   for (const task of (data ?? []) as TaskCountRow[]) {
     const current = counts.get(task.project_id) ?? emptyTaskCounts()
     current.total += 1
     if (task.status === 'done') current.done += 1
     else current.open += 1
     if (task.status === 'blocked') current.blocked += 1
-    if (task.status !== 'done' && task.due_at && new Date(task.due_at).getTime() < now) {
+    if (task.status !== 'done' && isOverdueTimestamp(task.due_at)) {
       current.overdue += 1
     }
     counts.set(task.project_id, current)
@@ -93,7 +93,7 @@ function projectPayload(input: CreateProjectInput | UpdateProjectInput) {
 
   if ('title' in input) payload.title = validateProjectTitle(input.title)
   if ('description' in input) payload.description = validateProjectDescription(input.description)
-  if ('target_deadline' in input) payload.target_deadline = validateOptionalTimestamp(input.target_deadline, 'target_deadline')
+  if ('target_deadline' in input) payload.target_deadline = validateProjectDeadline(input.target_deadline)
   if ('goal_summary' in input) payload.goal_summary = validateProjectDescription(input.goal_summary)
   if ('execution_target_score' in input) {
     payload.execution_target_score = validateExecutionTargetScore(input.execution_target_score)
@@ -133,10 +133,10 @@ export async function listProjectsForUser(userId: string): Promise<ProjectListIt
 
   const hydrated = await hydrateProjects([...(ownedProjects ?? []), ...memberProjects] as ProjectRow[])
   return hydrated.sort((a, b) => {
-    const aDeadline = a.target_deadline ? new Date(a.target_deadline).getTime() : Number.MAX_SAFE_INTEGER
-    const bDeadline = b.target_deadline ? new Date(b.target_deadline).getTime() : Number.MAX_SAFE_INTEGER
+    const aDeadline = timestampMs(a.target_deadline)
+    const bDeadline = timestampMs(b.target_deadline)
     if (aDeadline !== bDeadline) return aDeadline - bDeadline
-    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    return timestampMs(b.updated_at, 0) - timestampMs(a.updated_at, 0)
   })
 }
 
@@ -195,4 +195,3 @@ export async function deleteProject(projectId: string) {
 
   return { success: true }
 }
-

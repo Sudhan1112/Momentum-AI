@@ -1,14 +1,16 @@
 import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { calculateExecutionScore, getProjectExecutionScore, type ExecutionScore } from '@/lib/momentum/execution-score'
+import { calculateExecutionScore, type ExecutionScore } from '@/lib/momentum/execution-score'
 import { calculateWorkspaceHealth, type WorkspaceHealthSnapshot } from '@/lib/momentum/health-snapshot'
 import { recoveryConfidence, successProbability } from '@/lib/momentum/recovery-confidence'
-import { evaluateRecoveryTriggers } from '@/lib/momentum/recovery-triggers'
+import { evaluateRecoveryTriggers, recoveryGenerationMode } from '@/lib/momentum/recovery-triggers'
 import { getProject } from '@/lib/momentum/projects/project-service'
 import { listProjectTasks } from '@/lib/momentum/tasks/task-service'
 import type { ProjectDetail } from '@/types/project'
 import type { TaskItem, TaskPriority, TaskStatus } from '@/types/task'
+import { addCalendarDays, isOverdueTimestamp, remainingCalendarDays, timestampMs } from '@/lib/momentum/date'
+import { conflict } from '@/lib/momentum/errors'
 
 export type RecoveryPlanStatus = 'proposed' | 'applied' | 'dismissed'
 
@@ -26,6 +28,7 @@ export type RecoveryAction = {
   task_title: string
   reason: string
   impact: string
+  trigger?: string
   from?: string | null
   to?: string | null
 }
@@ -88,18 +91,17 @@ function openTasks(tasks: TaskItem[]) {
 }
 
 function dueDate(task: TaskItem) {
-  return task.due_at ? new Date(task.due_at).getTime() : Number.MAX_SAFE_INTEGER
+  return timestampMs(task.due_at)
 }
 
 function isoDatePlus(days: number) {
-  const date = new Date()
-  date.setDate(date.getDate() + days)
+  const date = addCalendarDays(new Date(), days) ?? new Date()
   date.setHours(17, 0, 0, 0)
   return date.toISOString()
 }
 
 function isOverdue(task: TaskItem) {
-  return Boolean(task.due_at && new Date(task.due_at).getTime() < Date.now() && !['done', 'cancelled'].includes(task.status))
+  return isOverdueTimestamp(task.due_at) && !['done', 'cancelled'].includes(task.status)
 }
 
 function actionId(type: RecoveryActionType, taskId: string) {
@@ -109,6 +111,14 @@ function actionId(type: RecoveryActionType, taskId: string) {
 function addUnique(actions: RecoveryAction[], action: RecoveryAction) {
   if (actions.some((candidate) => candidate.id === action.id)) return
   if (actions.length < 8) actions.push(action)
+}
+
+function actionTrigger(type: RecoveryActionType) {
+  if (type === 'reschedule_task') return 'overdue_work'
+  if (type === 'reprioritize_task') return 'critical_risk'
+  if (type === 'split_overloaded_work') return 'workload_pressure'
+  if (type === 'reduce_deadline_risk') return 'missing_schedule'
+  return 'inactive_work'
 }
 
 function generateRecoveryActions(tasks: TaskItem[], score: ExecutionScore): RecoveryAction[] {
@@ -190,7 +200,7 @@ function generateRecoveryActions(tasks: TaskItem[], score: ExecutionScore): Reco
     })
   })
 
-  return actions
+  return actions.map((action) => ({ ...action, trigger: action.trigger ?? actionTrigger(action.type) }))
 }
 
 function applyActionsForProjection(tasks: TaskItem[], actions: RecoveryAction[]) {
@@ -239,7 +249,10 @@ function healthForPersistedLevel(level: WorkspaceHealthSnapshot['level'], execut
   }
 }
 
-function planSummary(before: number, after: number, health: WorkspaceHealthSnapshot, afterHealth: WorkspaceHealthSnapshot) {
+function planSummary(before: number, after: number, health: WorkspaceHealthSnapshot, afterHealth: WorkspaceHealthSnapshot, exploratory = false) {
+  if (exploratory) {
+    return 'This exploratory plan shows optional ways to protect current momentum; the project does not require recovery.'
+  }
   if (after > before) {
     return `Recovery plan improves execution from ${before} to ${after} and moves health from ${health.label} to ${afterHealth.label}.`
   }
@@ -269,14 +282,18 @@ function rowToPlan(row: RecoveryPlanRow): RecoveryPlan {
   }
 }
 
-export async function buildRecoveryPlan(projectId: string): Promise<RecoveryPlan> {
-  const [project, tasks, beforeScore] = await Promise.all([
+export async function buildRecoveryPlan(projectId: string, options: { force?: boolean } = {}): Promise<RecoveryPlan> {
+  const [project, tasks] = await Promise.all([
     getProject(projectId),
     listProjectTasks(projectId),
-    getProjectExecutionScore(projectId),
   ])
+  const beforeScore = calculateExecutionScore(tasks, { scope: 'project', projectId })
   const beforeHealth = calculateWorkspaceHealth(beforeScore)
   const triggers = evaluateRecoveryTriggers(beforeScore, beforeHealth)
+  const generationMode = recoveryGenerationMode(triggers, options.force)
+  if (!generationMode) {
+    throw conflict('Project is healthy. No recovery actions are needed. Send force=true to explore optional actions.')
+  }
   const actions = generateRecoveryActions(tasks, beforeScore)
   const projectedTasks = applyActionsForProjection(tasks, actions)
   const afterScore = calculateExecutionScore(projectedTasks, { scope: 'project', projectId })
@@ -288,8 +305,8 @@ export async function buildRecoveryPlan(projectId: string): Promise<RecoveryPlan
   return {
     project_id: projectId,
     status: 'proposed',
-    trigger_reasons: triggers.reasons.length > 0 ? triggers.reasons : ['Manual recovery requested.'],
-    summary: planSummary(beforeScore.score, afterScore.score, beforeHealth, afterHealth),
+    trigger_reasons: triggers.reasons.length > 0 ? triggers.reasons : ['Healthy-project exploration requested.'],
+    summary: planSummary(beforeScore.score, afterScore.score, beforeHealth, afterHealth, generationMode === 'exploratory'),
     actions,
     impact: {
       before_execution_score: beforeScore.score,
@@ -302,14 +319,14 @@ export async function buildRecoveryPlan(projectId: string): Promise<RecoveryPlan
     },
     metadata: {
       generated_at: new Date().toISOString(),
-      remaining_work_days: Math.max(1, project.target_deadline ? Math.ceil((new Date(project.target_deadline).getTime() - Date.now()) / (24 * 60 * 60 * 1000)) : 7),
+      remaining_work_days: remainingCalendarDays(project.target_deadline, new Date(), 7),
       action_count: actions.length,
     },
   }
 }
 
-export async function createRecoveryPlan(projectId: string, userId: string) {
-  const plan = await buildRecoveryPlan(projectId)
+export async function createRecoveryPlan(projectId: string, userId: string, options: { force?: boolean } = {}) {
+  const plan = await buildRecoveryPlan(projectId, options)
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('recovery_plans')

@@ -1,5 +1,3 @@
-import 'server-only'
-
 import type { ExecutionScore } from '@/lib/momentum/execution-score'
 import type { WorkspaceHealthSnapshot } from '@/lib/momentum/health-snapshot'
 
@@ -32,4 +30,10 @@ export function evaluateRecoveryTriggers(score: ExecutionScore, health: Workspac
     should_generate: reasons.length > 0,
     reasons,
   }
+}
+
+export function recoveryGenerationMode(triggers: RecoveryTriggerResult, force = false) {
+  if (triggers.should_generate) return 'required' as const
+  if (force) return 'exploratory' as const
+  return null
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { requireSession } from '@/lib/momentum/authz'
 import { jsonMomentumError } from '@/lib/momentum/errors'
+import { normalizeMomentumFlowError } from '@/lib/momentum/scheduler/momentum-flow-readiness'
 import { explainMomentumFlowProposal } from '@/lib/momentum/scheduler/momentum-flow-service'
 
 type RouteContext = {
@@ -18,6 +19,6 @@ export async function POST(_req: Request, { params }: RouteContext) {
     const explanation = await explainMomentumFlowProposal(session.data.user.id, params.id)
     return NextResponse.json(explanation)
   } catch (error) {
-    return jsonMomentumError(error)
+    return jsonMomentumError(normalizeMomentumFlowError(error))
   }
 }

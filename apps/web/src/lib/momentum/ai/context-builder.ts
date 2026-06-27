@@ -7,6 +7,7 @@ import { withCitations, type AiCitationSet } from '@/lib/momentum/ai/gateway'
 import type { AiCitationInput } from '@/lib/momentum/ai/run-logger'
 import type { ProjectDetail } from '@/types/project'
 import type { TaskItem } from '@/types/task'
+import { isOverdueTimestamp, timestampMs, toDateOnly } from '@/lib/momentum/date'
 
 export type AiContextSource = AiCitationInput
 
@@ -30,14 +31,14 @@ export type BuildProjectContextInput = {
 }
 
 function taskUrgency(task: TaskItem) {
-  const due = task.due_at ? new Date(task.due_at).getTime() : Number.MAX_SAFE_INTEGER
+  const due = timestampMs(task.due_at)
   const statusWeight = task.status === 'blocked' ? 0 : task.status === 'done' || task.status === 'cancelled' ? 2 : 1
   const priorityWeight = task.priority === 'urgent' ? -3 : task.priority === 'high' ? -2 : task.priority === 'medium' ? -1 : 0
   return due + statusWeight * 10_000_000 + priorityWeight
 }
 
 function taskExcerpt(task: TaskItem) {
-  const due = task.due_at ? `due ${new Date(task.due_at).toISOString().slice(0, 10)}` : 'no due date'
+  const due = task.due_at ? `due ${toDateOnly(task.due_at) ?? 'invalid date'}` : 'no due date'
   const estimate = task.estimate_minutes ? `${task.estimate_minutes}m estimate` : 'no estimate'
   const blocked = task.blocked_reason ? `, blocked: ${task.blocked_reason}` : ''
   return `${task.title} (${task.status}, ${task.priority}, ${due}, ${estimate}${blocked})`
@@ -45,9 +46,12 @@ function taskExcerpt(task: TaskItem) {
 
 export async function buildProjectContext(input: BuildProjectContextInput): Promise<ProjectAiContext> {
   validateRequiredUuid(input.projectId, 'project_id')
-  const maxTasks = Math.max(1, Math.min(input.maxTasks ?? 12, 25))
-
   const [project, tasks] = await Promise.all([getProject(input.projectId), listProjectTasks(input.projectId)])
+  return buildProjectContextFromData(project, tasks, input.maxTasks)
+}
+
+export function buildProjectContextFromData(project: ProjectDetail, tasks: TaskItem[], maxTasksInput = 12): ProjectAiContext {
+  const maxTasks = Math.max(1, Math.min(maxTasksInput, 25))
   const selectedTasks = [...tasks].sort((a, b) => taskUrgency(a) - taskUrgency(b)).slice(0, maxTasks)
 
   const sources: AiContextSource[] = [
@@ -69,7 +73,7 @@ export async function buildProjectContext(input: BuildProjectContextInput): Prom
 
   const openTasks = tasks.filter((task) => task.status !== 'done' && task.status !== 'cancelled').length
   const overdueTasks = tasks.filter(
-    (task) => task.status !== 'done' && task.due_at && new Date(task.due_at).getTime() < Date.now()
+    (task) => task.status !== 'done' && isOverdueTimestamp(task.due_at)
   ).length
 
   return {

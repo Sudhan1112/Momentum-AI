@@ -5,6 +5,7 @@ import { listProjectTasks } from '@/lib/momentum/tasks/task-service'
 import { scoreTaskRisk, type TaskRiskScore } from '@/lib/momentum/risk-scorer'
 import type { ProjectListItem } from '@/types/project'
 import type { TaskItem } from '@/types/task'
+import { calendarDayDifference, isOverdueTimestamp, parseTimestamp } from '@/lib/momentum/date'
 
 export type ExecutionScoreComponent = {
   score: number
@@ -40,7 +41,6 @@ export type WorkspaceExecutionScore = ExecutionScore & {
   project_scores: Array<ExecutionScore & { project_title: string }>
 }
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000
 const OPEN_STATUSES = new Set(['backlog', 'todo', 'in_progress', 'blocked'])
 
 function clamp(value: number, min = 0, max = 1) {
@@ -52,12 +52,14 @@ function isOpenTask(task: TaskItem) {
 }
 
 function isOverdue(task: TaskItem, now: Date) {
-  return isOpenTask(task) && Boolean(task.due_at && new Date(task.due_at).getTime() < now.getTime())
+  return isOpenTask(task) && isOverdueTimestamp(task.due_at, now)
 }
 
 function isRecentlyCompleted(task: TaskItem, now: Date) {
   if (task.status !== 'done' || !task.completed_at) return false
-  return now.getTime() - new Date(task.completed_at).getTime() <= 7 * MS_PER_DAY
+  const completed = parseTimestamp(task.completed_at)
+  const age = completed ? calendarDayDifference(completed, now) : null
+  return age != null && age >= 0 && age <= 7
 }
 
 function component(score: number, max: number, reason: string): ExecutionScoreComponent {

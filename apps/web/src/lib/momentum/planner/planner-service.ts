@@ -4,6 +4,7 @@ import { listProjectsForUser } from '@/lib/momentum/projects/project-service'
 import { listProjectTasks } from '@/lib/momentum/tasks/task-service'
 import type { ProjectListItem } from '@/types/project'
 import type { TaskItem, TaskPriority, TaskStatus } from '@/types/task'
+import { calendarDayDifference, timestampMs } from '@/lib/momentum/date'
 
 export type PlannerTask = Pick<
   TaskItem,
@@ -68,17 +69,8 @@ const PRIORITY_WEIGHT: Record<TaskPriority, number> = {
   low: 3,
 }
 
-function startOfToday() {
-  const now = new Date()
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
-}
-
-function startOfTomorrow(today: Date) {
-  return new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
-}
-
 function dueTime(task: PlannerTask) {
-  return task.due_at ? new Date(task.due_at).getTime() : Number.MAX_SAFE_INTEGER
+  return timestampMs(task.due_at)
 }
 
 function statusWeight(status: TaskStatus) {
@@ -98,13 +90,11 @@ function compareTasks(a: PlannerTask, b: PlannerTask) {
   if (statusDelta !== 0) return statusDelta
   const dueDelta = dueTime(a) - dueTime(b)
   if (dueDelta !== 0) return dueDelta
-  return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+  return timestampMs(b.updated_at, 0) - timestampMs(a.updated_at, 0)
 }
 
-function toPlannerTask(task: TaskItem, projectTitle: string, today: Date, tomorrow: Date): PlannerTask {
-  const dueAt = task.due_at ? new Date(task.due_at).getTime() : null
-  const todayTime = today.getTime()
-  const tomorrowTime = tomorrow.getTime()
+function toPlannerTask(task: TaskItem, projectTitle: string, today: Date): PlannerTask {
+  const dueDay = task.due_at ? calendarDayDifference(today, task.due_at) : null
 
   return {
     id: task.id,
@@ -118,8 +108,8 @@ function toPlannerTask(task: TaskItem, projectTitle: string, today: Date, tomorr
     blocked_reason: task.blocked_reason,
     updated_at: task.updated_at,
     project_title: projectTitle,
-    is_overdue: Boolean(dueAt && dueAt < todayTime && task.status !== 'done' && task.status !== 'cancelled'),
-    is_due_today: Boolean(dueAt && dueAt >= todayTime && dueAt < tomorrowTime),
+    is_overdue: Boolean(dueDay != null && dueDay < 0 && task.status !== 'done' && task.status !== 'cancelled'),
+    is_due_today: dueDay === 0,
   }
 }
 
@@ -168,15 +158,14 @@ function buildNarrative(metrics: PlannerToday['brief']['metrics']) {
 
 export async function getPlannerToday(userId: string): Promise<PlannerToday> {
   const projects = await listProjectsForUser(userId)
-  const today = startOfToday()
-  const tomorrow = startOfTomorrow(today)
+  const today = new Date()
 
   const tasksByProject = await Promise.all(
     projects.map(async (project) => {
       const tasks = await listProjectTasks(project.id)
       return {
         project,
-        tasks: tasks.map((task) => toPlannerTask(task, project.title, today, tomorrow)),
+        tasks: tasks.map((task) => toPlannerTask(task, project.title, today)),
       }
     })
   )

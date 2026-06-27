@@ -2,6 +2,7 @@ import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { badRequest, notFound } from '@/lib/momentum/errors'
+import { parseTimestamp, toDateOnly } from '@/lib/momentum/date'
 import { ensureAssignableProjectMember } from '@/lib/momentum/projects/member-service'
 import {
   validateEstimateMinutes,
@@ -22,6 +23,7 @@ type ProjectRow = {
   title: string
   status: string
   owner_id: string
+  target_deadline: string | null
 }
 
 async function getProfiles(userIds: string[]) {
@@ -62,7 +64,25 @@ function normalizeCompletionFields(payload: Record<string, unknown>) {
   }
 }
 
-async function taskPayload(projectId: string, input: CreateTaskInput | UpdateTaskInput) {
+async function projectDeadline(projectId: string) {
+  const admin = createAdminClient()
+  const { data, error } = await admin.from('projects').select('target_deadline').eq('id', projectId).single()
+  if (error) throw new Error(error.message)
+  return (data?.target_deadline as string | null) ?? null
+}
+
+function validateTaskDueDate(value: unknown, deadline: string | null) {
+  const dueAt = validateOptionalTimestamp(value, 'due_at')
+  if (!dueAt || !deadline) return dueAt
+  const dueDate = toDateOnly(parseTimestamp(dueAt)!)
+  const deadlineDate = toDateOnly(deadline)
+  if (dueDate && deadlineDate && dueDate > deadlineDate) {
+    throw badRequest('due_at cannot be after the project deadline')
+  }
+  return dueAt
+}
+
+async function taskPayload(projectId: string, input: CreateTaskInput | UpdateTaskInput, knownDeadline?: string | null) {
   const payload: Record<string, unknown> = {}
 
   if ('title' in input) payload.title = validateTaskTitle(input.title)
@@ -72,7 +92,10 @@ async function taskPayload(projectId: string, input: CreateTaskInput | UpdateTas
   if ('assignee_id' in input) {
     payload.assignee_id = await ensureAssignableProjectMember(projectId, input.assignee_id ?? null)
   }
-  if ('due_at' in input) payload.due_at = validateOptionalTimestamp(input.due_at, 'due_at')
+  if ('due_at' in input) {
+    const deadline = knownDeadline === undefined ? await projectDeadline(projectId) : knownDeadline
+    payload.due_at = validateTaskDueDate(input.due_at, deadline)
+  }
   if ('started_at' in input) payload.started_at = validateOptionalTimestamp(input.started_at, 'started_at')
   if ('completed_at' in input) payload.completed_at = validateOptionalTimestamp(input.completed_at, 'completed_at')
   if ('estimate_minutes' in input) payload.estimate_minutes = validateEstimateMinutes(input.estimate_minutes)
@@ -137,7 +160,7 @@ export async function getTask(taskId: string): Promise<TaskDetail> {
 
   const { data: project, error: projectError } = await admin
     .from('projects')
-    .select('id, title, status, owner_id')
+    .select('id, title, status, owner_id, target_deadline')
     .eq('id', task.project_id)
     .single()
 
@@ -154,7 +177,7 @@ export async function updateTask(taskId: string, input: UpdateTaskInput): Promis
   validateRequiredUuid(taskId, 'task_id')
 
   const existing = await getTask(taskId)
-  const payload = await taskPayload(existing.project_id, input)
+  const payload = await taskPayload(existing.project_id, input, existing.project.target_deadline)
   if (Object.keys(payload).length === 0) throw badRequest('No task fields provided')
 
   const admin = createAdminClient()
@@ -175,4 +198,3 @@ export async function deleteTask(taskId: string) {
 
   return { success: true }
 }
-

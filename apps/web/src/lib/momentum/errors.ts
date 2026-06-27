@@ -2,11 +2,13 @@ import { jsonError, jsonServerError } from '@/lib/api-route-errors'
 
 export class MomentumError extends Error {
   status: number
+  code?: string
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code?: string) {
     super(message)
     this.name = 'MomentumError'
     this.status = status
+    this.code = code
   }
 }
 
@@ -28,9 +30,11 @@ export function conflict(message: string) {
 
 export function jsonMomentumError(caught: unknown) {
   if (caught instanceof MomentumError) {
+    if (caught.code) {
+      return Response.json({ error: caught.message, code: caught.code }, { status: caught.status })
+    }
     return jsonError(caught.message, caught.status)
   }
 
   return jsonServerError(caught)
 }
-

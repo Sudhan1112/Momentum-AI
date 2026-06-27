@@ -10,6 +10,8 @@ import {
   assertEnumValue,
 } from '@/lib/momentum/validation/enums'
 import { assertOptionalUuid, assertUuid } from '@/lib/momentum/validation/uuid'
+import { parseTimestamp, validatePlanningDate } from '@/lib/momentum/date'
+import { badRequest } from '@/lib/momentum/errors'
 
 export const TITLE_MAX_LENGTH = 200
 export const DESCRIPTION_MAX_LENGTH = 10_000
@@ -142,14 +144,19 @@ export function validateOptionalTimestamp(value: unknown, field: string) {
   if (value == null) return null
 
   if (typeof value !== 'string') {
-    throw new Error(`${field} must be an ISO timestamp string`)
+    throw badRequest(`${field} must be an ISO timestamp string`)
   }
 
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    throw new Error(`${field} must be a valid ISO timestamp`)
+  if (!parseTimestamp(value)) {
+    throw badRequest(`${field} must be a valid ISO timestamp`)
   }
 
   return value
 }
 
+export function validateProjectDeadline(value: unknown, field = 'target_deadline') {
+  if (value == null) return null
+  const result = validatePlanningDate(value, { field })
+  if (!result.ok) throw badRequest(result.message)
+  return value as string
+}

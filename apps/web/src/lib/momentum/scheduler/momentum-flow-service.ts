@@ -14,6 +14,15 @@ import { validateOptionalUuid, validateRequiredUuid } from '@/lib/momentum/valid
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { ProjectListItem } from '@/types/project'
 import type { TaskItem, TaskPriority } from '@/types/task'
+import {
+  addCalendarDays,
+  calendarDayDifference,
+  parseDateOnly,
+  timestampMs,
+  todayDateOnly,
+  toDateOnly,
+  validatePlanningDate,
+} from '@/lib/momentum/date'
 
 export type MomentumFlowProposalStatus = 'proposed' | 'applied' | 'dismissed' | 'expired'
 export type MomentumFlowSessionStatus = 'proposed' | 'scheduled' | 'locked' | 'completed' | 'skipped'
@@ -209,14 +218,14 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function dateOnly(date: Date) {
-  return date.toISOString().slice(0, 10)
+  return toDateOnly(date)!
 }
 
 function parseScheduleDate(value?: string | null) {
-  if (!value) return dateOnly(new Date())
-  const parsed = new Date(`${value.slice(0, 10)}T09:00:00`)
-  if (Number.isNaN(parsed.getTime())) throw badRequest('schedule_date must be a valid date')
-  return dateOnly(parsed)
+  if (!value) return todayDateOnly()
+  const result = validatePlanningDate(value, { field: 'schedule_date' })
+  if (!result.ok) throw badRequest(result.message)
+  return dateOnly(result.value)
 }
 
 function normalizeHorizon(value?: number | null) {
@@ -226,13 +235,11 @@ function normalizeHorizon(value?: number | null) {
 }
 
 function startOfScheduleDate(date: string) {
-  return new Date(`${date}T00:00:00`)
+  return parseDateOnly(date) ?? new Date()
 }
 
 function addDays(date: Date, days: number) {
-  const next = new Date(date)
-  next.setDate(next.getDate() + days)
-  return next
+  return addCalendarDays(date, days) ?? date
 }
 
 function addMinutes(date: Date, minutes: number) {
@@ -253,9 +260,8 @@ function estimateMinutes(task: TaskItem) {
 
 function dueDatePressure(task: TaskItem, scheduleDate: string) {
   if (!task.due_at) return 3
-  const due = new Date(task.due_at).getTime()
-  const now = new Date(`${scheduleDate}T09:00:00`).getTime()
-  const days = Math.ceil((due - now) / (24 * 60 * 60 * 1000))
+  const days = calendarDayDifference(scheduleDate, task.due_at)
+  if (days == null) return 3
   if (days < 0) return 30
   if (days === 0) return 26
   if (days <= 2) return 22
@@ -308,7 +314,7 @@ function candidateRationale(candidate: Omit<CandidateTask, 'rationale'>) {
   const reasons = [
     `${candidate.task.priority} priority`,
     `${candidate.riskScore.level} risk`,
-    candidate.task.due_at ? `due ${dateOnly(new Date(candidate.task.due_at))}` : 'no due date',
+    candidate.task.due_at ? `due ${toDateOnly(candidate.task.due_at) ?? 'invalid date'}` : 'no due date',
   ]
   if (candidate.task.status === 'blocked') reasons.push('blocked work needs an unblock session')
   return `Scheduled because ${reasons.join(', ')}.`
@@ -380,7 +386,7 @@ function buildCandidates(entries: ProjectEntry[], scheduleDate: string) {
     }
   }
 
-  return candidates.sort((a, b) => b.score - a.score || new Date(a.task.due_at ?? '2999-01-01').getTime() - new Date(b.task.due_at ?? '2999-01-01').getTime())
+  return candidates.sort((a, b) => b.score - a.score || timestampMs(a.task.due_at) - timestampMs(b.task.due_at))
 }
 
 async function capacityProfile(userId: string, scheduleDate: string): Promise<CapacityProfileRow> {
@@ -812,7 +818,7 @@ export async function applyMomentumFlowProposal(userId: string, proposalId: stri
 export async function listMomentumFlowToday(userId: string, projectIdInput?: string | null): Promise<MomentumFlowToday> {
   validateRequiredUuid(userId, 'user_id')
   const projectId = validateOptionalUuid(projectIdInput ?? null, 'project_id')
-  const scheduleDate = dateOnly(new Date())
+  const scheduleDate = todayDateOnly()
   const [profile, blocking, entries] = await Promise.all([
     capacityProfile(userId, scheduleDate),
     appliedBlockingSessions(userId, scheduleDate, 1, projectId),

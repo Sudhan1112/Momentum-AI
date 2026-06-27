@@ -26,11 +26,10 @@ type MomentumFlowPanelProps = {
 }
 
 function flowError(payload: unknown, fallback: string) {
-  const message = getResponseErrorMessage(payload, fallback)
-  const lower = message.toLowerCase()
-  if (lower.includes('momentum_flow') || lower.includes('schema cache') || lower.includes('relation')) {
+  if (payload && typeof payload === 'object' && 'code' in payload && payload.code === 'MOMENTUM_FLOW_SETUP_REQUIRED') {
     return 'Momentum Flow database is not ready. Apply supabase/patches/add_momentum_flow.sql, reload the schema, then refresh.'
   }
+  const message = getResponseErrorMessage(payload, fallback)
   return message
 }
 

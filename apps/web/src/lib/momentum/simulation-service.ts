@@ -1,9 +1,9 @@
 import 'server-only'
 
 import { executeAiTextCapability, type AiExecutionContext, type AiFallbackReason } from '@/lib/momentum/ai/executor'
-import { buildProjectContext } from '@/lib/momentum/ai/context-builder'
+import { buildProjectContextFromData } from '@/lib/momentum/ai/context-builder'
 import { withCitations } from '@/lib/momentum/ai/gateway'
-import { calculateExecutionScore, getProjectExecutionScore, type ExecutionScore } from '@/lib/momentum/execution-score'
+import { calculateExecutionScore, type ExecutionScore } from '@/lib/momentum/execution-score'
 import { calculateWorkspaceHealth, type WorkspaceHealthLevel, type WorkspaceHealthSnapshot } from '@/lib/momentum/health-snapshot'
 import { badRequest } from '@/lib/momentum/errors'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -14,8 +14,18 @@ import { listProjectTasks } from '@/lib/momentum/tasks/task-service'
 import { validateOptionalUuid, validateRequiredUuid } from '@/lib/momentum/validation/schemas'
 import type { ProjectDetail } from '@/types/project'
 import type { TaskItem } from '@/types/task'
+import {
+  addCalendarDays,
+  calendarDayDifference,
+  parseDateOnly,
+  parseTimestamp,
+  remainingCalendarDays,
+  todayDateOnly,
+  toDateOnly,
+  validatePlanningDate,
+} from '@/lib/momentum/date'
+import { simulationProbability } from '@/lib/momentum/simulation-probability'
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000
 const DEFAULT_DAILY_HOURS = 4
 const MIN_DAILY_HOURS = 0.5
 const MAX_DAILY_HOURS = 16
@@ -126,22 +136,16 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
 }
 
-function dateOnly(date: Date) {
-  return date.toISOString().slice(0, 10)
-}
-
 function addDays(date: Date, days: number) {
-  const next = new Date(date)
-  next.setDate(next.getDate() + days)
-  return next
+  return addCalendarDays(date, days) ?? date
 }
 
 function parseDate(value: unknown, field: string) {
   if (value == null || value === '') return null
   if (typeof value !== 'string') throw badRequest(`${field} must be a date string`)
-  const parsed = new Date(`${value.slice(0, 10)}T17:00:00`)
-  if (Number.isNaN(parsed.getTime())) throw badRequest(`${field} must be a valid date`)
-  return parsed
+  const result = validatePlanningDate(value, { field })
+  if (!result.ok) throw badRequest(result.message)
+  return result.value
 }
 
 function optionalNumber(value: unknown, fallback: number, min: number, max: number, field: string) {
@@ -171,7 +175,7 @@ function remainingWorkMinutes(tasks: TaskItem[]) {
 }
 
 function remainingDaysUntil(deadline: Date, now: Date) {
-  return Math.max(1, Math.ceil((deadline.getTime() - now.getTime()) / MS_PER_DAY))
+  return remainingCalendarDays(deadline, now, 1)
 }
 
 function projectedFinishDate(now: Date, workMinutes: number, dailyCapacityMinutes: number, extraDelayDays: number) {
@@ -179,19 +183,35 @@ function projectedFinishDate(now: Date, workMinutes: number, dailyCapacityMinute
   return addDays(now, workDays + Math.max(0, extraDelayDays))
 }
 
-function successProbability(score: ExecutionScore, timeline: TimelineProjection) {
-  const loadRatio = timeline.remaining_work_minutes / Math.max(timeline.available_minutes, 1)
-  const loadPenalty = Math.min(35, Math.max(0, (loadRatio - 0.85) * 38))
-  const schedulePenalty = Math.min(28, Math.max(0, timeline.schedule_delta_days) * 8)
-  const overduePenalty = Math.min(24, score.metrics.overdue_tasks * 7)
-  const riskPenalty = Math.min(25, score.top_risks.filter((risk) => risk.level === 'critical' || risk.level === 'high').length * 6)
-  const capacityBonus = timeline.daily_capacity_minutes > DEFAULT_DAILY_HOURS * 60 ? Math.min(10, (timeline.daily_capacity_minutes - DEFAULT_DAILY_HOURS * 60) / 30) : 0
-  return Math.round(clamp(score.score + 18 + capacityBonus - loadPenalty - schedulePenalty - overduePenalty - riskPenalty, 0, 100))
+export function calculateSimulationProbability(
+  score: ExecutionScore,
+  health: WorkspaceHealthSnapshot,
+  timeline: TimelineProjection
+) {
+  const blockedTasks = score.top_risks.filter((risk) =>
+    risk.factors.some((factor) => factor.key === 'task_status' && factor.reason.toLowerCase().includes('blocked'))
+  ).length
+  return simulationProbability({
+    executionScore: score.score,
+    overdueTasks: score.metrics.overdue_tasks,
+    blockedTasks,
+    highOrCriticalRisks: score.top_risks.filter((risk) => risk.level === 'critical' || risk.level === 'high').length,
+    health: health.level,
+    remainingWorkMinutes: timeline.remaining_work_minutes,
+    availableMinutes: timeline.available_minutes,
+    dailyCapacityMinutes: timeline.daily_capacity_minutes,
+    scheduleDeltaDays: timeline.schedule_delta_days,
+  })
 }
 
 function normalizeInput(input: GoalSimulationInput, project: ProjectDetail) {
   validateRequiredUuid(input.projectId, 'project_id')
-  const targetDeadline = parseDate(input.targetDeadline, 'target_deadline') ?? (project.target_deadline ? new Date(project.target_deadline) : addDays(new Date(), 7))
+  const now = new Date()
+  const requestedDeadline = parseDate(input.targetDeadline, 'target_deadline')
+  const storedDeadline = project.target_deadline
+    ? validatePlanningDate(project.target_deadline, { field: 'target_deadline', now })
+    : null
+  const targetDeadline = requestedDeadline ?? (storedDeadline?.ok ? storedDeadline.value : addDays(now, 7))
   const dailyWorkHours = optionalNumber(input.dailyWorkHours, DEFAULT_DAILY_HOURS, MIN_DAILY_HOURS, MAX_DAILY_HOURS, 'daily_work_hours')
   const extraDailyHours = optionalNumber(input.extraDailyHours, 0, 0, MAX_DAILY_HOURS, 'extra_daily_hours')
   const delayDays = optionalInteger(input.delayDays, 0, 0, 30, 'delay_days')
@@ -200,7 +220,7 @@ function normalizeInput(input: GoalSimulationInput, project: ProjectDetail) {
 
   return {
     projectId: input.projectId,
-    targetDeadline: dateOnly(targetDeadline),
+    targetDeadline: toDateOnly(targetDeadline)!,
     dailyWorkHours,
     extraDailyHours,
     delayTaskId,
@@ -216,11 +236,12 @@ function applyScenario(tasks: TaskItem[], inputs: GoalSimulation['inputs']) {
     .map((task) => {
       const next = { ...task }
       if (isOpenTask(next) && next.due_at && inputs.shiftMilestoneDays !== 0) {
-        next.due_at = addDays(new Date(next.due_at), inputs.shiftMilestoneDays).toISOString()
+        const due = parseTimestamp(next.due_at)
+        if (due) next.due_at = addDays(due, inputs.shiftMilestoneDays).toISOString()
       }
 
       if (inputs.delayTaskId && next.id === inputs.delayTaskId && inputs.delayDays > 0) {
-        const baseDate = next.due_at ? new Date(next.due_at) : new Date()
+        const baseDate = parseTimestamp(next.due_at) ?? new Date()
         next.due_at = addDays(baseDate, inputs.delayDays).toISOString()
         if (next.status === 'in_progress') next.status = 'todo'
       }
@@ -230,18 +251,18 @@ function applyScenario(tasks: TaskItem[], inputs: GoalSimulation['inputs']) {
 }
 
 function buildTimeline(tasks: TaskItem[], inputs: GoalSimulation['inputs'], now: Date) {
-  const deadline = new Date(`${inputs.targetDeadline}T17:00:00`)
+  const deadline = parseDateOnly(inputs.targetDeadline) ?? now
   const dailyCapacityMinutes = Math.round((inputs.dailyWorkHours + inputs.extraDailyHours) * 60)
   const workMinutes = remainingWorkMinutes(tasks)
   const remainingDays = remainingDaysUntil(deadline, now)
   const availableMinutes = dailyCapacityMinutes * remainingDays
   const delayedTaskDays = inputs.delayTaskId ? inputs.delayDays : 0
   const finish = projectedFinishDate(now, workMinutes, dailyCapacityMinutes, delayedTaskDays)
-  const scheduleDeltaDays = Math.ceil((finish.getTime() - deadline.getTime()) / MS_PER_DAY)
+  const scheduleDeltaDays = calendarDayDifference(deadline, finish) ?? 0
 
   return {
     target_deadline: inputs.targetDeadline,
-    estimated_finish_date: dateOnly(finish),
+    estimated_finish_date: toDateOnly(finish)!,
     remaining_work_minutes: workMinutes,
     available_minutes: availableMinutes,
     daily_capacity_minutes: dailyCapacityMinutes,
@@ -339,14 +360,27 @@ function deterministicExplanation(result: Omit<GoalSimulation, 'id' | 'ai_explan
 
 async function buildDeterministic(input: GoalSimulationInput): Promise<SimulationDeterministic> {
   validateRequiredUuid(input.projectId, 'project_id')
-  const [project, tasks, currentScore, recoveryPlans] = await Promise.all([
+  const [project, tasks, recoveryPlans] = await Promise.all([
     getProject(input.projectId),
     listProjectTasks(input.projectId),
-    getProjectExecutionScore(input.projectId),
     listRecoveryPlans(input.projectId),
   ])
   const now = new Date()
+  const currentScore = calculateExecutionScore(tasks, { scope: 'project', projectId: input.projectId, now })
   const inputs = normalizeInput(input, project)
+  const baselineDeadline = project.target_deadline && parseDateOnly(project.target_deadline.slice(0, 10))
+    ? project.target_deadline.slice(0, 10)
+    : toDateOnly(addDays(now, 7))!
+  const baselineInputs: GoalSimulation['inputs'] = {
+    ...inputs,
+    targetDeadline: baselineDeadline < todayDateOnly(now) ? todayDateOnly(now) : baselineDeadline,
+    dailyWorkHours: DEFAULT_DAILY_HOURS,
+    extraDailyHours: 0,
+    delayTaskId: null,
+    delayDays: 0,
+    shiftMilestoneDays: 0,
+    removeCompletedTasks: false,
+  }
   const projectedTasks = applyScenario(tasks, inputs)
   const projectedScore = calculateExecutionScore(projectedTasks, { scope: 'project', projectId: input.projectId, now })
   const currentHealth = calculateWorkspaceHealth(currentScore)
@@ -370,8 +404,8 @@ async function buildDeterministic(input: GoalSimulationInput): Promise<Simulatio
     currentHealth,
     projectedHealth,
     timeline,
-    currentProbability: successProbability(currentScore, buildTimeline(tasks, inputs, now)),
-    projectedProbability: successProbability(projectedScore, timeline),
+    currentProbability: calculateSimulationProbability(currentScore, currentHealth, buildTimeline(tasks, baselineInputs, now)),
+    projectedProbability: calculateSimulationProbability(projectedScore, projectedHealth, timeline),
     criticalTasks: projected.criticalTasks,
     recommendedActions: recommendedActions(projected),
     recoveryAvailable: projected.recoveryAvailable,
@@ -380,7 +414,7 @@ async function buildDeterministic(input: GoalSimulationInput): Promise<Simulatio
 }
 
 async function buildContext(deterministic: SimulationDeterministic): Promise<SimulationContext> {
-  const projectContext = await buildProjectContext({ projectId: deterministic.project.id, maxTasks: 10 })
+  const projectContext = buildProjectContextFromData(deterministic.project, deterministic.currentTasks, 10)
   const summary = toPublicSimulation(deterministic)
 
   return {

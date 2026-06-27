@@ -2,12 +2,19 @@ import 'server-only'
 
 import { executeAiJsonCapability, type AiExecutionContext, type AiFallbackReason } from '@/lib/momentum/ai/executor'
 import { intentionallyCitationless, withCitations } from '@/lib/momentum/ai/gateway'
-import { buildProjectContext } from '@/lib/momentum/ai/context-builder'
+import { buildProjectContextFromData } from '@/lib/momentum/ai/context-builder'
 import type { AiCitationInput } from '@/lib/momentum/ai/run-logger'
 import { badRequest } from '@/lib/momentum/errors'
 import { listProjectTasks } from '@/lib/momentum/tasks/task-service'
 import { validateOptionalUuid } from '@/lib/momentum/validation/schemas'
 import type { TaskItem, TaskPriority } from '@/types/task'
+import { getProject } from '@/lib/momentum/projects/project-service'
+import {
+  cleanProposalText,
+  cleanProposalTitle,
+  normalizeProposalDate,
+  normalizeProposalKey,
+} from '@/lib/momentum/ai/proposal-normalization'
 
 const PRIORITIES: TaskPriority[] = ['low', 'medium', 'high', 'urgent']
 const MAX_SOURCE_TEXT = 12_000
@@ -46,6 +53,9 @@ type ExtractTasksDeterministic = {
   project_id: string | null
   document_id: string | null
   existing_titles: string[]
+  project_deadline: string | null
+  project: Awaited<ReturnType<typeof getProject>> | null
+  tasks: TaskItem[]
   fallback_proposals: TaskExtractionProposal[]
 }
 
@@ -67,26 +77,16 @@ type AiTaskExtractionJson =
   | AiTaskProposal[]
 
 function normalizeTitle(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return normalizeProposalKey(value)
 }
 
 function cleanTitle(value: string) {
-  return value
-    .replace(/^[-*\u2022\d.)\]\[\sx]+/i, '')
-    .replace(/^(todo|task|action item|need to|we need to|please)\s*[:,-]?\s*/i, '')
-    .trim()
-    .slice(0, 200)
+  return cleanProposalTitle(value, /^(todo|task|action item|need to|we need to|please)\s*[:,-]?\s*/i) ?? ''
 }
 
 function cleanDescription(value: unknown) {
   if (typeof value !== 'string') return null
-  const normalized = value.trim()
-  return normalized ? normalized.slice(0, 1_000) : null
+  return cleanProposalText(value, 1_000)
 }
 
 function normalizePriority(value: unknown, text = ''): TaskPriority {
@@ -102,31 +102,8 @@ function normalizePriority(value: unknown, text = ''): TaskPriority {
   return 'medium'
 }
 
-function dateOnly(date: Date) {
-  return date.toISOString().slice(0, 10)
-}
-
-function normalizeDueDate(value: unknown, sourceText = '') {
-  if (typeof value === 'string' && value.trim()) {
-    const trimmed = value.trim()
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed) && !Number.isNaN(new Date(`${trimmed}T00:00:00`).getTime())) {
-      return trimmed
-    }
-
-    const parsed = new Date(trimmed)
-    if (!Number.isNaN(parsed.getTime())) return dateOnly(parsed)
-  }
-
-  const source = sourceText.toLowerCase()
-  const today = new Date()
-  if (/\btoday\b/.test(source)) return dateOnly(today)
-  if (/\btomorrow\b/.test(source)) {
-    const tomorrow = new Date(today)
-    tomorrow.setDate(today.getDate() + 1)
-    return dateOnly(tomorrow)
-  }
-
-  return null
+function normalizeDueDate(value: unknown, sourceText = '', maxDate: string | null = null) {
+  return normalizeProposalDate(value, { sourceText, maxDate })
 }
 
 function normalizeConfidence(value: unknown, fallback: number) {
@@ -136,7 +113,7 @@ function normalizeConfidence(value: unknown, fallback: number) {
   return Math.round(Math.min(1, Math.max(0, normalized)) * 100) / 100
 }
 
-function proposalFromLine(line: string): TaskExtractionProposal | null {
+function proposalFromLine(line: string, maxDate: string | null): TaskExtractionProposal | null {
   const title = cleanTitle(line)
   if (title.length < 4 || title.split(/\s+/).length > 16) return null
   if (/^(notes?|meeting|agenda|summary)$/i.test(title)) return null
@@ -145,13 +122,13 @@ function proposalFromLine(line: string): TaskExtractionProposal | null {
     title,
     description: null,
     priority: normalizePriority(null, line),
-    due_date: normalizeDueDate(null, line),
+    due_date: normalizeDueDate(null, line, maxDate),
     confidence: /\b(today|tomorrow|urgent|asap|deploy|fix|prepare|review|send|finish|create|test|meet)\b/i.test(line) ? 0.72 : 0.6,
     source: 'deterministic',
   }
 }
 
-function deterministicExtract(text: string, existingTitles: string[]) {
+function deterministicExtract(text: string, existingTitles: string[], maxDate: string | null) {
   const existing = new Set(existingTitles.map(normalizeTitle))
   const seen = new Set<string>()
   const candidates = text
@@ -161,7 +138,7 @@ function deterministicExtract(text: string, existingTitles: string[]) {
 
   const proposals: TaskExtractionProposal[] = []
   for (const candidate of candidates) {
-    const proposal = proposalFromLine(candidate)
+    const proposal = proposalFromLine(candidate, maxDate)
     if (!proposal) continue
     const key = normalizeTitle(proposal.title)
     if (!key || seen.has(key) || existing.has(key)) continue
@@ -170,10 +147,24 @@ function deterministicExtract(text: string, existingTitles: string[]) {
     if (proposals.length >= MAX_PROPOSALS) break
   }
 
+  if (proposals.length === 0) {
+    const fallbackTitles = ['Review source notes and define the next action', 'Define the next action from source notes']
+    const title = fallbackTitles.find((candidate) => !existing.has(normalizeTitle(candidate)))
+    if (title) {
+      proposals.push({
+        title,
+        description: cleanDescription(text),
+        priority: 'medium',
+        due_date: normalizeDueDate(null, text, maxDate),
+        confidence: 0.55,
+        source: 'deterministic',
+      })
+    }
+  }
   return proposals
 }
 
-function normalizeAiProposal(raw: AiTaskProposal, existing: Set<string>, seen: Set<string>): TaskExtractionProposal | null {
+function normalizeAiProposal(raw: AiTaskProposal, existing: Set<string>, seen: Set<string>, maxDate: string | null): TaskExtractionProposal | null {
   if (typeof raw.title !== 'string') return null
   const title = cleanTitle(raw.title)
   const key = normalizeTitle(title)
@@ -187,7 +178,7 @@ function normalizeAiProposal(raw: AiTaskProposal, existing: Set<string>, seen: S
     title,
     description: cleanDescription(raw.description),
     priority: normalizePriority(raw.priority, `${title} ${typeof raw.description === 'string' ? raw.description : ''}`),
-    due_date: normalizeDueDate(raw.due_date, `${title} ${typeof raw.description === 'string' ? raw.description : ''}`),
+    due_date: normalizeDueDate(raw.due_date, `${title} ${typeof raw.description === 'string' ? raw.description : ''}`, maxDate),
     confidence,
     source: 'ai',
   }
@@ -200,12 +191,12 @@ function proposalArray(json: AiTaskExtractionJson): AiTaskProposal[] {
   return []
 }
 
-function normalizeAiProposals(json: AiTaskExtractionJson, existingTitles: string[]) {
+function normalizeAiProposals(json: AiTaskExtractionJson, existingTitles: string[], maxDate: string | null) {
   const existing = new Set(existingTitles.map(normalizeTitle))
   const seen = new Set<string>()
   const raw = proposalArray(json)
   const proposal = raw
-    .map((item) => normalizeAiProposal(item, existing, seen))
+    .map((item) => normalizeAiProposal(item, existing, seen, maxDate))
     .filter((item): item is TaskExtractionProposal => Boolean(item))
     .slice(0, MAX_PROPOSALS)
 
@@ -227,28 +218,28 @@ function validateInput(input: ExtractTasksInput) {
   }
 }
 
-async function existingProjectTitles(projectId: string | null) {
-  if (!projectId) return []
-  const tasks = await listProjectTasks(projectId)
-  return tasks.map((task: TaskItem) => task.title)
-}
-
 async function buildDeterministic(input: ExtractTasksInput): Promise<ExtractTasksDeterministic> {
   const validated = validateInput(input)
-  const existingTitles = await existingProjectTitles(validated.projectId)
+  const [project, tasks] = validated.projectId
+    ? await Promise.all([getProject(validated.projectId), listProjectTasks(validated.projectId)])
+    : [null, [] as TaskItem[]]
+  const existingTitles = tasks.map((task) => task.title)
 
   return {
     text: validated.text,
     project_id: validated.projectId,
     document_id: validated.documentId,
     existing_titles: existingTitles,
-    fallback_proposals: deterministicExtract(validated.text, existingTitles),
+    project_deadline: project?.target_deadline ?? null,
+    project,
+    tasks,
+    fallback_proposals: deterministicExtract(validated.text, existingTitles, project?.target_deadline ?? null),
   }
 }
 
 async function buildContext(deterministic: ExtractTasksDeterministic): Promise<ExtractTasksContext> {
-  const projectContext = deterministic.project_id
-    ? await buildProjectContext({ projectId: deterministic.project_id, maxTasks: 8 })
+  const projectContext = deterministic.project
+    ? buildProjectContextFromData(deterministic.project, deterministic.tasks, 8)
     : null
   const citations: AiCitationInput[] = [
     ...(projectContext?.sources ?? []),
@@ -330,7 +321,7 @@ export async function extractTaskProposals(userId: string, input: ExtractTasksIn
     }
   }
 
-  const normalized = normalizeAiProposals(result.json, result.deterministic.existing_titles)
+  const normalized = normalizeAiProposals(result.json, result.deterministic.existing_titles, result.deterministic.project_deadline)
   if (normalized.proposal.length === 0 && result.deterministic.fallback_proposals.length > 0) {
     return {
       proposal: result.deterministic.fallback_proposals,

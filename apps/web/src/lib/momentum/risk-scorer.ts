@@ -3,6 +3,7 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTask, listProjectTasks } from '@/lib/momentum/tasks/task-service'
 import type { TaskItem, TaskStatus } from '@/types/task'
+import { calendarDayDifference } from '@/lib/momentum/date'
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 
@@ -27,7 +28,6 @@ export type TaskRiskScore = {
   calculated_at: string
 }
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000
 const CLOSED_STATUSES = new Set<TaskStatus>(['done', 'cancelled'])
 
 function clamp(value: number, min = 0, max = 1) {
@@ -39,7 +39,7 @@ function roundScore(value: number) {
 }
 
 function daysUntil(date: string, now: Date) {
-  return Math.ceil((new Date(date).getTime() - now.getTime()) / MS_PER_DAY)
+  return calendarDayDifference(now, date)
 }
 
 function riskLevel(score: number): RiskLevel {
@@ -60,6 +60,14 @@ function dueDateFactor(task: TaskItem, now: Date): RiskFactor {
   }
 
   const remainingDays = daysUntil(task.due_at, now)
+  if (remainingDays == null) {
+    return {
+      key: 'due_date_proximity',
+      label: 'Due date proximity',
+      contribution: 0.04,
+      reason: 'The stored due date is invalid, so scheduling confidence is low.',
+    }
+  }
 
   if (remainingDays < 0) {
     return {
@@ -152,6 +160,14 @@ function overdueDurationFactor(task: TaskItem, now: Date): RiskFactor {
   }
 
   const remainingDays = daysUntil(task.due_at, now)
+  if (remainingDays == null) {
+    return {
+      key: 'overdue_duration',
+      label: 'Overdue duration',
+      contribution: 0,
+      reason: 'The stored due date is invalid and cannot be treated as overdue.',
+    }
+  }
   if (remainingDays >= 0) {
     return {
       key: 'overdue_duration',

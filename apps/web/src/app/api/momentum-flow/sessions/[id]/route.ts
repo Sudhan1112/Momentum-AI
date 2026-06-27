@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { parseJsonObject } from '@/lib/api-route-errors'
 import { requireSession } from '@/lib/momentum/authz'
 import { jsonMomentumError } from '@/lib/momentum/errors'
+import { normalizeMomentumFlowError } from '@/lib/momentum/scheduler/momentum-flow-readiness'
 import { updateMomentumFlowSession, type MomentumFlowSessionStatus } from '@/lib/momentum/scheduler/momentum-flow-service'
 
 type RouteContext = {
@@ -36,6 +37,6 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 
     return NextResponse.json(updated)
   } catch (error) {
-    return jsonMomentumError(error)
+    return jsonMomentumError(normalizeMomentumFlowError(error))
   }
 }

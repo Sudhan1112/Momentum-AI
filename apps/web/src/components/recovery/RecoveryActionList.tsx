@@ -3,6 +3,7 @@
 import { ArrowRight, CalendarClock, Flag, ListTree, PlayCircle, ShieldCheck } from 'lucide-react'
 
 import type { RecoveryAction } from '@/lib/momentum/recovery-service'
+import { toDateOnly } from '@/lib/momentum/date'
 
 const ICONS = {
   reschedule_task: CalendarClock,
@@ -14,6 +15,11 @@ const ICONS = {
 
 function actionLabel(type: RecoveryAction['type']) {
   return type.replace(/_/g, ' ')
+}
+
+function actionDate(value: string | null | undefined) {
+  if (!value) return 'Unset'
+  return toDateOnly(value) ?? 'Invalid date'
 }
 
 export function RecoveryActionList({ actions }: { actions: RecoveryAction[] }) {
@@ -42,13 +48,14 @@ export function RecoveryActionList({ actions }: { actions: RecoveryAction[] }) {
                   </span>
                   {action.from !== undefined && action.to !== undefined && (
                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#7b746b]">
-                      {action.from || 'Unset'}
+                      {actionDate(action.from)}
                       <ArrowRight className="h-3 w-3" />
-                      {action.to}
+                      {actionDate(action.to)}
                     </span>
                   )}
                 </div>
                 <h4 className="mt-2 truncate text-sm font-bold text-[#2d241c]">{action.task_title}</h4>
+                {action.trigger && <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[#8a7f72]">Trigger: {action.trigger.replace(/_/g, ' ')}</p>}
                 <p className="mt-2 text-sm leading-5 text-[#6b5f52]">{action.reason}</p>
                 <p className="mt-1 text-xs font-semibold text-[#2f6b4f]">{action.impact}</p>
               </div>
