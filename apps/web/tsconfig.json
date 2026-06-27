@@ -41,7 +41,6 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "..\\..\\..\\..\\..\\..\\..\\tmp\\Momentum-AI-next-web\\types\\**\\*.ts",
     "..\\..\\..\\..\\..\\AppData\\Local\\Temp\\Momentum-AI-next-web/types/**/*.ts"
   ],
   "exclude": [

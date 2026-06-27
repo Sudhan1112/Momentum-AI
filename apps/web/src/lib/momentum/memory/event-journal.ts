@@ -9,6 +9,7 @@ import {
   type ProjectEventSpec,
   type ProjectEventType,
 } from '@/types/project-memory'
+import type { DecisionCategory } from '@/types/project-intelligence'
 
 const MAX_SUMMARY_LENGTH = 500
 const MAX_REASON_LENGTH = 2_000
@@ -269,6 +270,38 @@ export function taskDeletedEvent(task: TaskState, reason?: string | null) {
     reason,
     before_state: before,
     after_state: {},
+  })]
+}
+
+export function manualDecisionAcceptedEvent(input: {
+  title: string
+  decision: string
+  reason?: string | null
+  category: DecisionCategory
+  importance?: ProjectEventImportance
+  evidence_event_ids?: string[]
+}) {
+  const title = cap(input.title, 160) ?? 'Untitled decision'
+  const decision = cap(input.decision, 500) ?? 'No decision recorded'
+  const evidenceEventIds = (input.evidence_event_ids ?? []).filter(Boolean)
+
+  return [event({
+    event_type: 'decision.accepted',
+    entity_type: 'project',
+    importance: input.importance ?? 'normal',
+    summary: `Decision accepted: ${title}`,
+    reason: input.reason ?? null,
+    before_state: {},
+    after_state: {
+      title,
+      decision,
+      category: input.category,
+      status: 'accepted',
+    },
+    metadata: {
+      category: input.category,
+      evidence_event_ids: evidenceEventIds,
+    },
   })]
 }
 

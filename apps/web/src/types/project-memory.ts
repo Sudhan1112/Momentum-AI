@@ -34,6 +34,7 @@ export const PROJECT_EVENT_TYPE_VALUES = [
   'momentum_session.skipped',
   'ai_run.completed',
   'ai_run.failed',
+  'decision.accepted',
 ] as const
 
 export type ProjectEventType = (typeof PROJECT_EVENT_TYPE_VALUES)[number]

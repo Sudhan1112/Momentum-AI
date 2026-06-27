@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   decodeProjectEvent,
   eventKeyForMutation,
+  manualDecisionAcceptedEvent,
   projectCreatedEvent,
   projectUpdatedEvents,
   normalizeEventJournalError,
@@ -104,6 +105,26 @@ describe('project event journal', () => {
     expect(state).not.toHaveProperty('description')
     expect(String(state.blocked_reason)).toHaveLength(500)
     expect(JSON.stringify(deleted)).not.toContain('Never persist this')
+  })
+
+  it('records manual accepted decisions with category and evidence ids', () => {
+    const [decision] = manualDecisionAcceptedEvent({
+      title: 'Delay launch',
+      decision: 'Move MVP launch to July 15.',
+      reason: 'Authentication is not stable.',
+      category: 'timeline',
+      importance: 'high',
+      evidence_event_ids: ['event-1', 'event-2'],
+    })
+
+    expect(decision.event_type).toBe('decision.accepted')
+    expect(decision.after_state).toMatchObject({
+      title: 'Delay launch',
+      decision: 'Move MVP launch to July 15.',
+      category: 'timeline',
+      status: 'accepted',
+    })
+    expect(decision.metadata.evidence_event_ids).toEqual(['event-1', 'event-2'])
   })
 
   it('uses stable mutation keys and rejects unsupported event versions', () => {

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, CalendarDays, Loader2, Plus, Telescope, Users } from 'lucide-react'
 
 import { MomentumFlowPanel } from '@/components/momentum-flow/MomentumFlowPanel'
+import { MomentumMemoryPanel } from '@/components/projects/MomentumMemoryPanel'
 import { RecoveryFlow } from '@/components/recovery/RecoveryFlow'
 import { SimulationModal } from '@/components/simulation/SimulationModal'
 import { TaskDrawer } from '@/components/tasks/TaskDrawer'
@@ -49,6 +50,7 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskItem | null>(null)
   const [simulationOpen, setSimulationOpen] = useState(false)
+  const [memoryRefreshKey, setMemoryRefreshKey] = useState(0)
 
   const canWrite = useMemo(() => (role ? WRITE_ROLES.has(role) : false), [role])
 
@@ -100,6 +102,7 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
     await loadTasks()
     await loadRecoveryPlans()
     setLoading(false)
+    setMemoryRefreshKey((current) => current + 1)
   }, [loadProject, loadRecoveryPlans, loadTasks])
 
   useEffect(() => {
@@ -230,6 +233,7 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
                   <RecoveryFlow projectId={projectId} initialPlans={recoveryPlans} canWrite={canWrite} />
                 </div>
                 <MomentumFlowPanel projectId={projectId} projectTitle={project.title} compact />
+                <MomentumMemoryPanel projectId={projectId} canWrite={canWrite} refreshKey={memoryRefreshKey} />
                 <WorkBreakdownPanel projectId={projectId} projectTitle={project.title} canWrite={canWrite} onTasksCreated={refresh} />
                 <TaskExtractionPanel projectId={projectId} canWrite={canWrite} onTasksCreated={refresh} />
                 <TaskList tasks={tasks} canWrite={canWrite} onEdit={openEditTask} />
