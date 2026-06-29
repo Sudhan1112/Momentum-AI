@@ -34,11 +34,6 @@ export type TaskAccessContext = ProjectAccessContext & {
   taskId: string
 }
 
-export type DocumentLinkAccessContext = {
-  documentId: string
-  userId: string
-}
-
 export type AiRunAccessContext = {
   aiRunId: string
   userId: string
@@ -153,19 +148,6 @@ export async function assertTaskAccess(taskId: string, userId: string): Promise<
   const result = await getProjectRole(task.project_id, userId)
   if (!result.ok) return result
   return { ok: true, data: { ...result.data, taskId } }
-}
-
-export async function assertDocumentOwnerForLink(
-  documentId: string,
-  userId: string
-): Promise<AuthzResult<DocumentLinkAccessContext>> {
-  void documentId
-  void userId
-
-  return {
-    ok: false,
-    response: jsonError('Document linking is not available in Sprint 1', 501),
-  }
 }
 
 export async function canReadAiRun(aiRunId: string, userId: string): Promise<AuthzResult<AiRunAccessContext>> {

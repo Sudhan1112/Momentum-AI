@@ -9,7 +9,7 @@ export const MORNING_BRIEF_PROMPT_V1 = {
     'Return JSON only with keys: recommendation, reasoning.',
     'Write as Momentum, not as Gemini or a generic AI assistant.',
     'Keep recommendation to one sentence and reasoning to one sentence.',
-    'Do not invent tasks, deadlines, documents, or users.',
+    'Do not invent tasks, deadlines, projects, or users.',
     'Reference cited source ids when making claims.',
   ],
 } as const

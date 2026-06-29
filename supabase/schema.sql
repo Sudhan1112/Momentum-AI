@@ -1,36 +1,25 @@
--- ============================================================
--- Lumina Write — PostgreSQL Schema
--- Paste ENTIRE script in Supabase SQL Editor → click Run
--- Safe to re-run: drops everything first
--- ============================================================
+-- Momentum AI core identity schema.
+-- Feature schemas are applied from supabase/patches in migration order.
 
-drop table if exists public.document_access_requests cascade;
-drop table if exists public.document_comments cascade;
-drop table if exists public.document_versions cascade;
-drop table if exists public.document_members cascade;
-drop table if exists public.documents cascade;
 drop table if exists public.profiles cascade;
 drop type if exists app_role cascade;
 drop function if exists public.handle_new_user() cascade;
-drop function if exists public.is_document_member(uuid) cascade;
 
--- 1. Role enum — five tiers from least to most privileged
 create type app_role as enum ('viewer', 'commenter', 'editor', 'admin', 'owner');
 
--- 2. Profiles — one row per auth.users entry
 create table public.profiles (
   id uuid references auth.users on delete cascade not null primary key,
   email text not null,
   full_name text,
   avatar_url text,
-  color text default '#3B82F6'
+  color text default '#0F6CBD'
 );
+
 alter table public.profiles enable row level security;
 create policy "Profiles viewable by all." on profiles for select using (true);
 create policy "Users update own profile." on profiles for update using (auth.uid() = id);
 create policy "Service can insert profiles." on profiles for insert with check (true);
 
--- Auto-create profile row when a new user signs up via Supabase Auth
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
@@ -45,147 +34,7 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- Backfill existing users into profiles (safe to run on empty DB)
 insert into public.profiles (id, email, full_name, avatar_url)
 select id, email, raw_user_meta_data->>'full_name', raw_user_meta_data->>'avatar_url'
 from auth.users
 on conflict (id) do nothing;
-
--- 3. Documents
-create table public.documents (
-  id uuid default gen_random_uuid() primary key,
-  title text not null default 'Untitled Document',
-  yjs_state text,                              -- base64-encoded Yjs binary state
-  owner_id uuid references public.profiles(id) not null,
-  created_at timestamptz default now() not null,
-  updated_at timestamptz default now() not null
-);
-alter table public.documents enable row level security;
-
--- 4. Document Members — created BEFORE documents RLS policies are attached
-create table public.document_members (
-  id uuid default gen_random_uuid() primary key,
-  document_id uuid references public.documents(id) on delete cascade not null,
-  user_id uuid references public.profiles(id) on delete cascade not null,
-  role app_role not null default 'viewer',
-  created_at timestamptz default now() not null,
-  unique(document_id, user_id)
-);
-alter table public.document_members enable row level security;
-
--- ⚠️ KEY FIX: SECURITY DEFINER functions break the RLS recursion cycle.
--- Without these, documents RLS checks document_members, whose RLS checks documents → infinite loop.
--- These functions run as the function owner (superuser), bypassing RLS internally.
-create or replace function public.is_document_member(doc_id uuid)
-returns boolean
-language sql
-security definer
-stable
-set search_path = public
-as $$
-  select exists (
-    select 1 from public.document_members
-    where document_id = doc_id and user_id = auth.uid()
-  );
-$$;
-
-create or replace function public.is_document_owner(doc_id uuid)
-returns boolean
-language sql
-security definer
-stable
-set search_path = public
-as $$
-  select exists (
-    select 1 from public.documents d
-    where d.id = doc_id and d.owner_id = auth.uid()
-  );
-$$;
-
--- Documents RLS — uses SECURITY DEFINER helpers, no recursion
-create policy "View own or member docs." on documents for select
-  using (auth.uid() = owner_id or public.is_document_member(id));
-create policy "Create docs." on documents for insert
-  with check (auth.uid() = owner_id);
-create policy "Owner updates." on documents for update
-  using (auth.uid() = owner_id);
-create policy "Owner deletes." on documents for delete
-  using (auth.uid() = owner_id);
-
--- Document Members RLS
-create policy "Members view document roster." on document_members for select
-  using (public.is_document_member(document_id));
-create policy "Owner adds document members." on document_members for insert
-  with check (public.is_document_owner(document_id));
-create policy "Owner updates member roles." on document_members for update
-  using (public.is_document_owner(document_id))
-  with check (public.is_document_owner(document_id));
-create policy "Leave or owner removes members." on document_members for delete
-  using (
-    user_id = auth.uid()
-    or public.is_document_owner(document_id)
-  );
-
--- 5. Document Versions — stores full Yjs snapshots for version history
-create table public.document_versions (
-  id uuid default gen_random_uuid() primary key,
-  document_id uuid references public.documents(id) on delete cascade not null,
-  yjs_state text not null,             -- full Yjs snapshot encoded as base64
-  created_by uuid references public.profiles(id),
-  label text default 'Auto-save',
-  created_at timestamptz default now() not null
-);
-alter table public.document_versions enable row level security;
-create policy "Anyone can view versions." on document_versions for select using (true);
-create policy "Anyone can insert versions." on document_versions for insert with check (true);
-
--- 6. Document Comments — discussion workflow for commenter/editor/admin/owner roles
-create table public.document_comments (
-  id uuid default gen_random_uuid() primary key,
-  document_id uuid references public.documents(id) on delete cascade not null,
-  user_id uuid references public.profiles(id) on delete cascade not null,
-  content text not null check (char_length(trim(content)) > 0 and char_length(content) <= 2000),
-  selection_text text,
-  status text not null default 'open' check (status in ('open', 'resolved')),
-  resolved_at timestamptz,
-  resolved_by uuid references public.profiles(id),
-  created_at timestamptz default now() not null,
-  updated_at timestamptz default now() not null
-);
-create index if not exists document_comments_document_created_idx
-  on public.document_comments(document_id, created_at desc);
-alter table public.document_comments enable row level security;
-create policy "Members can view comments." on document_comments for select
-  using (public.is_document_owner(document_id) or public.is_document_member(document_id));
-create policy "Members can create own comments." on document_comments for insert
-  with check (
-    auth.uid() = user_id
-    and (public.is_document_owner(document_id) or public.is_document_member(document_id))
-  );
-create policy "Authors can edit own comments." on document_comments for update
-  using (
-    auth.uid() = user_id
-    and (public.is_document_owner(document_id) or public.is_document_member(document_id))
-  )
-  with check (
-    auth.uid() = user_id
-    and (public.is_document_owner(document_id) or public.is_document_member(document_id))
-  );
-create policy "Authors and owners can delete comments." on document_comments for delete
-  using (
-    auth.uid() = user_id
-    or public.is_document_owner(document_id)
-  );
-
--- 7. Document Access Requests — non-members request access, owners approve/reject
-create table public.document_access_requests (
-  id uuid default gen_random_uuid() primary key,
-  document_id uuid references public.documents(id) on delete cascade not null,
-  user_id uuid references public.profiles(id) on delete cascade not null,
-  requested_role app_role not null,
-  status text default 'pending' check (status in ('pending', 'approved', 'rejected')),
-  created_at timestamptz default now() not null
-);
-alter table public.document_access_requests enable row level security;
-create policy "Own access requests." on document_access_requests for all
-  using (auth.uid() = user_id) with check (auth.uid() = user_id);

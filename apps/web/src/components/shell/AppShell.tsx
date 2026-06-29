@@ -13,6 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [checkingSession, setCheckingSession] = useState(true)
+  const [collapsed, setCollapsed] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -37,7 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (checkingSession) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f7f3ec] text-[#9a5b2b]">
+      <main className="flex min-h-screen items-center justify-center bg-[#f5f5f5] text-[#0f6cbd]">
         <Loader2 className="h-6 w-6 animate-spin" />
       </main>
     )
@@ -46,8 +47,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!user) return null
 
   return (
-    <div className="flex min-h-screen bg-[#f7f3ec] text-[#2d241c]">
-      <Sidebar />
+    <div className="flex min-h-screen items-start bg-[#f5f5f5] text-[#242424]">
+      <Sidebar user={user} collapsed={collapsed} onToggle={() => setCollapsed((value) => !value)} />
       <div className="min-w-0 flex-1 pb-20 lg:pb-0">
         <TopNav user={user} />
         {children}

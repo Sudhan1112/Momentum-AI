@@ -90,7 +90,7 @@ export default function LoginPage() {
           </h1>
           
           <p className="mt-6 max-w-md text-lg leading-relaxed" style={{ color: '#6b5f52' }}>
-            Momentum AI brings projects, tasks, and collaborative documents together so meaningful work keeps moving.
+            Momentum AI brings projects, schedules, teams, and execution intelligence together so meaningful work keeps moving.
           </p>
 
           <div className="mt-10 flex flex-wrap gap-3">
@@ -145,7 +145,7 @@ export default function LoginPage() {
           <div className="mb-6 text-center">
             <h2 className="text-2xl font-semibold tracking-tight">{isLogin ? 'Welcome back' : 'Create an account'}</h2>
             <p className="mt-2 text-sm" style={{ color: '#6b5f52' }}>
-              {isLogin ? 'Enter your details to access your workspace.' : 'Join to start creating collaborative documents.'}
+              {isLogin ? 'Enter your details to access your workspace.' : 'Join to start planning and delivering projects.'}
             </p>
           </div>
 

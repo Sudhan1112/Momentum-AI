@@ -12,7 +12,9 @@ import { SimulationModal } from '@/components/simulation/SimulationModal'
 import { TaskDrawer } from '@/components/tasks/TaskDrawer'
 import { TaskExtractionPanel } from '@/components/tasks/TaskExtractionPanel'
 import { TaskList } from '@/components/tasks/TaskList'
+import { GanttWorkspace } from '@/components/tasks/GanttWorkspace'
 import { WorkBreakdownPanel } from '@/components/tasks/WorkBreakdownPanel'
+import { AppShell } from '@/components/shell/AppShell'
 import { getResponseErrorMessage, readResponsePayload } from '@/lib/http'
 import { notify } from '@/lib/notify'
 import { createClient } from '@/lib/supabase/client'
@@ -51,6 +53,7 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
   const [editingTask, setEditingTask] = useState<TaskItem | null>(null)
   const [simulationOpen, setSimulationOpen] = useState(false)
   const [memoryRefreshKey, setMemoryRefreshKey] = useState(0)
+  const [view, setView] = useState<'overview' | 'timeline' | 'board' | 'insights' | 'recovery' | 'members'>('timeline')
 
   const canWrite = useMemo(() => (role ? WRITE_ROLES.has(role) : false), [role])
 
@@ -143,7 +146,7 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
   const blockedCount = tasks.filter((task) => task.status === 'blocked').length
 
   return (
-    <main
+    <AppShell><main
       className="min-h-screen px-5 py-8 text-[#1f2937] sm:px-8 lg:px-12"
       style={{ background: 'linear-gradient(135deg, #f7f2e9 0%, #fbf7f0 48%, #efe7db 100%)' }}
     >
@@ -227,19 +230,41 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
               </div>
             </header>
 
+            <nav className="mt-4 flex overflow-x-auto border-b border-[#d6d6d6] bg-white px-2" aria-label="Project views">
+              {([
+                ['overview', 'Overview'],
+                ['timeline', 'Grid & Timeline'],
+                ['board', 'Board'],
+                ['insights', 'AI Insights'],
+                ['recovery', 'Recovery'],
+                ['members', 'Members'],
+              ] as const).map(([key, label]) => (
+                <button key={key} type="button" onClick={() => setView(key)} className={`whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold ${view === key ? 'border-[#0f6cbd] text-[#0f6cbd]' : 'border-transparent text-[#616161] hover:bg-[#f5f5f5]'}`}>
+                  {label}
+                </button>
+              ))}
+            </nav>
+
             <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
               <div className="space-y-6">
-                <div id="recovery-planner">
+                {view === 'overview' && <div className="fluent-card p-5"><h2 className="text-lg font-semibold">Project overview</h2><p className="mt-2 text-sm text-[#616161]">{project.description || project.goal_summary || 'No project brief yet.'}</p><div className="mt-4"><TaskList tasks={tasks.slice(0, 5)} canWrite={canWrite} onEdit={openEditTask} /></div></div>}
+                {view === 'recovery' && <div id="recovery-planner">
                   <RecoveryFlow projectId={projectId} initialPlans={recoveryPlans} canWrite={canWrite} />
-                </div>
-                <MomentumFlowPanel projectId={projectId} projectTitle={project.title} compact />
-                <MomentumMemoryPanel projectId={projectId} canWrite={canWrite} refreshKey={memoryRefreshKey} />
-                <WorkBreakdownPanel projectId={projectId} projectTitle={project.title} canWrite={canWrite} onTasksCreated={refresh} />
-                <TaskExtractionPanel projectId={projectId} canWrite={canWrite} onTasksCreated={refresh} />
-                <TaskList tasks={tasks} canWrite={canWrite} onEdit={openEditTask} />
+                </div>}
+                {view === 'insights' && <>
+                  <MomentumFlowPanel projectId={projectId} projectTitle={project.title} compact />
+                  <MomentumMemoryPanel projectId={projectId} canWrite={canWrite} refreshKey={memoryRefreshKey} />
+                  <WorkBreakdownPanel projectId={projectId} projectTitle={project.title} canWrite={canWrite} onTasksCreated={refresh} />
+                  <TaskExtractionPanel projectId={projectId} canWrite={canWrite} onTasksCreated={refresh} />
+                </>}
+                {view === 'timeline' && <GanttWorkspace tasks={tasks} canWrite={canWrite} onEdit={openEditTask} />}
+                {view === 'board' && <div>
+                  <h2 className="mb-3 text-lg font-semibold">Task board</h2>
+                  <TaskList tasks={tasks} canWrite={canWrite} onEdit={openEditTask} />
+                </div>}
               </div>
 
-              <aside className="h-fit rounded-[28px] border border-[#e7dece] bg-white/75 p-5 shadow-[0_16px_40px_rgba(83,67,48,0.07)]">
+              <aside className={`h-fit rounded-lg border border-[#e0e0e0] bg-white p-5 shadow-sm ${view === 'members' ? 'lg:col-span-2 lg:max-w-xl' : ''}`}>
                 <div className="flex items-center gap-2 text-sm font-bold text-[#1f2937]">
                   <Users className="h-4 w-4 text-[#9a5b2b]" />
                   Members
@@ -278,6 +303,6 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
           onClose={() => setSimulationOpen(false)}
         />
       )}
-    </main>
+    </main></AppShell>
   )
 }

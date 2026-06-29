@@ -47,6 +47,7 @@ export function TaskDrawer({
   const [priority, setPriority] = useState<TaskPriority>('medium')
   const [assigneeId, setAssigneeId] = useState('')
   const [dueAt, setDueAt] = useState('')
+  const [startedAt, setStartedAt] = useState('')
   const [estimateMinutes, setEstimateMinutes] = useState('')
   const [actualMinutes, setActualMinutes] = useState('')
   const [blockedReason, setBlockedReason] = useState('')
@@ -60,6 +61,7 @@ export function TaskDrawer({
     setPriority(task?.priority ?? 'medium')
     setAssigneeId(task?.assignee_id ?? '')
     setDueAt(toDatetimeLocal(task?.due_at ?? null))
+    setStartedAt(toDatetimeLocal(task?.started_at ?? null))
     setEstimateMinutes(task?.estimate_minutes != null ? String(task.estimate_minutes) : '')
     setActualMinutes(task?.actual_minutes != null ? String(task.actual_minutes) : '')
     setBlockedReason(task?.blocked_reason ?? '')
@@ -79,6 +81,7 @@ export function TaskDrawer({
       priority,
       assignee_id: assigneeId || null,
       due_at: toIso(dueAt),
+      started_at: toIso(startedAt),
       estimate_minutes: estimateMinutes ? Number(estimateMinutes) : null,
       actual_minutes: actualMinutes ? Number(actualMinutes) : null,
       blocked_reason: blockedReason || null,
@@ -162,6 +165,10 @@ export function TaskDrawer({
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-bold uppercase tracking-widest text-[#7b746b]">Start</span>
+              <input type="datetime-local" value={startedAt} onChange={(event) => setStartedAt(event.target.value)} className="mt-2 w-full rounded-2xl border border-[#e7dece] bg-white px-4 py-3 text-sm outline-none focus:border-[#0f6cbd]" />
+            </label>
             <label className="block">
               <span className="text-xs font-bold uppercase tracking-widest text-[#7b746b]">Status</span>
               <select

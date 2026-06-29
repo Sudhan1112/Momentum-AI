@@ -17,7 +17,6 @@ export const TITLE_MAX_LENGTH = 200
 export const DESCRIPTION_MAX_LENGTH = 10_000
 export const MEMORY_CONTENT_MAX_LENGTH = 8_000
 export const AI_TEXT_INPUT_MAX_LENGTH = 32_000
-export const DOCUMENT_EXCERPT_MAX_LENGTH = 8_000
 export const CITATION_EXCERPT_MAX_LENGTH = 500
 
 function assertRequiredString(value: unknown, field: string, maxLength: number) {
@@ -118,10 +117,6 @@ export function validateAiRunStatus(value: unknown) {
 
 export function validateCitationSourceType(value: unknown) {
   return assertEnumValue(value, CITATION_SOURCE_TYPE_VALUES, 'source_type')
-}
-
-export function validateDocumentExcerpt(value: unknown, field = 'document_excerpt') {
-  return assertOptionalString(value, field, DOCUMENT_EXCERPT_MAX_LENGTH)
 }
 
 export function validateCitationExcerpt(value: unknown) {

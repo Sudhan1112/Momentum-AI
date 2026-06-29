@@ -60,13 +60,13 @@ export type CreateTaskInput = {
   priority?: TaskPriority
   assignee_id?: string | null
   due_at?: string | null
+  started_at?: string | null
   estimate_minutes?: number | null
   blocked_reason?: string | null
 }
 
 export type UpdateTaskInput = Partial<CreateTaskInput> & {
   actual_minutes?: number | null
-  started_at?: string | null
   completed_at?: string | null
 }
 import type { ProfileSummary } from '@/types/project'

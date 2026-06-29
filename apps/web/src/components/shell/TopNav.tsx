@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { CalendarDays, FileText, FolderKanban, Home, LogOut, Sparkles } from 'lucide-react'
+import { Bell, CalendarDays, FolderKanban, Home, LogOut, Search, Sparkles } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 
+import { displayNameForUser } from '@/lib/avatar'
+import { UserAvatar } from '@/components/shell/UserAvatar'
 import { createClient } from '@/lib/supabase/client'
 
 const MOBILE_NAV_ITEMS = [
@@ -13,26 +15,6 @@ const MOBILE_NAV_ITEMS = [
   { href: '/planner', label: 'Planner', icon: CalendarDays },
   { href: '/momentum', label: 'Momentum', icon: Sparkles },
 ]
-
-function initialsFor(user: User | null) {
-  const fullName = user?.user_metadata?.full_name as string | undefined
-  const email = user?.email ?? ''
-  if (fullName) {
-    return fullName
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join('')
-      .toUpperCase()
-  }
-  return email.slice(0, 1).toUpperCase() || 'M'
-}
-
-function displayNameFor(user: User | null) {
-  const fullName = user?.user_metadata?.full_name as string | undefined
-  return fullName || user?.email?.split('@')[0] || 'Executor'
-}
 
 function isActive(pathname: string, href: string) {
   if (href === '/') return pathname === '/'
@@ -50,7 +32,7 @@ export function TopNav({ user }: { user: User | null }) {
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-[#e8dece] bg-[#f8f3ea]/92 px-4 py-3 backdrop-blur-xl sm:px-6">
+      <header className="sticky top-0 z-30 border-b border-[#e0e0e0] bg-white px-4 py-3 sm:px-6">
         <div className="flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 lg:hidden">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#9a5b2b] text-white">
@@ -59,37 +41,22 @@ export function TopNav({ user }: { user: User | null }) {
             <span className="text-sm font-bold text-[#2d241c]">Momentum AI</span>
           </Link>
 
-          <div className="hidden items-center gap-2 lg:flex">
-            <span className="rounded-full border border-[#eadfce] bg-white/78 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[#8a7f72]">
-              Execute
-            </span>
-            <span className="text-sm font-medium text-[#6b5f52]">Today</span>
-          </div>
+          <label className="hidden h-8 max-w-lg flex-1 items-center gap-2 rounded border border-[#c7c7c7] bg-[#fafafa] px-2.5 lg:flex"><Search className="h-4 w-4 text-[#616161]" /><input className="min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="Search projects and tasks" aria-label="Search" /></label>
 
           <div className="ml-auto flex items-center gap-3">
-            <Link
-              href="/documents"
-              className="hidden items-center gap-2 rounded-xl border border-[#eadfce] bg-white/74 px-3 py-2 text-sm font-semibold text-[#4f453d] transition hover:border-[#d6c4aa] hover:text-[#9a5b2b] sm:inline-flex"
-            >
-              <FileText className="h-4 w-4" />
-              Documents
-            </Link>
-            <div className="flex items-center gap-2 rounded-xl border border-[#eadfce] bg-white/74 px-2.5 py-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#2d241c] text-xs font-bold text-white">
-                {initialsFor(user)}
-              </div>
-              <span className="hidden max-w-[140px] truncate text-sm font-semibold text-[#2d241c] sm:block">
-                {displayNameFor(user)}
-              </span>
-            </div>
+            <button className="hidden h-9 w-9 items-center justify-center rounded hover:bg-[#f5f5f5] sm:flex" aria-label="Notifications"><Bell className="h-4 w-4" /></button>
             <button
               type="button"
               onClick={signOut}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#eadfce] bg-white/74 text-[#6b5f52] transition hover:border-[#d6c4aa] hover:text-[#9a5b2b]"
+              className="flex items-center gap-2 rounded-xl border border-[#eadfce] bg-white/74 px-2.5 py-2 text-left transition hover:border-[#d6c4aa] hover:bg-white"
               aria-label="Sign out"
               title="Sign out"
             >
-              <LogOut className="h-4 w-4" />
+              <UserAvatar user={user} size="sm" rounded="lg" />
+              <span className="hidden max-w-[140px] truncate text-sm font-semibold text-[#2d241c] sm:block">
+                {displayNameForUser(user)}
+              </span>
+              <LogOut className="hidden h-4 w-4 text-[#6b5f52] sm:block" />
             </button>
           </div>
         </div>

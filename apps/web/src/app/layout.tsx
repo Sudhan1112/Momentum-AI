@@ -5,13 +5,15 @@ import ToasterWrapper from '@/components/ToasterWrapper'
 
 export const metadata: Metadata = {
   title: 'Momentum AI',
-  description: 'Momentum AI is an execution workspace that helps teams turn projects, tasks, and collaborative documents into finished work.',
+  description: 'Momentum AI is an intelligent project management workspace for planning and executing team work.',
   icons: {
     icon: [
-      { url: '/brand/logo-32.png?v=3', sizes: '32x32', type: 'image/png' },
-      { url: '/brand/logo.ico?v=3', type: 'image/x-icon' },
+      { url: '/icon.svg?v=5', type: 'image/svg+xml' },
+      { url: '/brand/mark-gauge.svg?v=5', type: 'image/svg+xml' },
+      { url: '/brand/logo-32.png?v=5', sizes: '32x32', type: 'image/png' },
+      { url: '/brand/logo.ico?v=5', type: 'image/x-icon' },
     ],
-    apple: [{ url: '/brand/logo-180.png?v=3', sizes: '180x180', type: 'image/png' }],
+    apple: [{ url: '/brand/logo-180.png?v=5', sizes: '180x180', type: 'image/png' }],
   },
 }
 
@@ -21,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="dark" data-theme="dark">
+    <html lang="en">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -33,7 +35,7 @@ export default function RootLayout({
       </head>
       <body
         style={{
-          fontFamily: "'Inter', system-ui, sans-serif",
+          fontFamily: "'Segoe UI', 'Inter', system-ui, sans-serif",
           '--font-manrope': "'Manrope'",
           '--font-space-grotesk': "'Space Grotesk'",
           '--font-inter': "'Inter'",

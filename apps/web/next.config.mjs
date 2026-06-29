@@ -33,28 +33,6 @@ const nextConfig = {
       ])
     )
 
-    // Resolve the whole scoped package namespace from the hoisted root copy.
-    // This avoids resolution failures when a workspace-local `@tiptap` folder exists
-    // without every nested package being materialized under `apps/web/node_modules`.
-    config.resolve.alias['@tiptap'] = path.resolve(root, '@tiptap')
-
-    // Force ALL tiptap package references to resolve to the same root copy
-    // This prevents "duplicate @tiptap/core" issues causing canInsertNode errors
-    const tiptapPackages = [
-      '@tiptap/core',
-      '@tiptap/pm',
-      '@tiptap/react',
-      '@tiptap/starter-kit',
-      '@tiptap/y-tiptap',
-      '@tiptap/extension-collaboration',
-      '@tiptap/extension-collaboration-cursor',
-      '@tiptap/extension-text-style',
-    ]
-
-    tiptapPackages.forEach((pkg) => {
-      config.resolve.alias[pkg] = path.resolve(root, pkg)
-    })
-
     return config
   },
 }

@@ -1,5 +1,5 @@
 {
-  "name": "google-docs-clone",
+  "name": "momentum-ai",
   "version": "1.0.0",
   "private": true,
   "workspaces": [
@@ -7,13 +7,8 @@
   ],
   "scripts": {
     "dev:web": "npm run dev --workspace=apps/web",
-    "dev:server": "npm run dev --workspace=apps/sync-server",
-    "dev:sync-server": "npm run dev --workspace=apps/sync-server",
     "start:web": "npm start --workspace=apps/web",
-    "start:server": "npm start --workspace=apps/sync-server",
-    "start:sync-server": "npm start --workspace=apps/sync-server",
     "build:web": "npm run build --workspace=apps/web",
-    "build:server": "npm run build --workspace=apps/sync-server",
     "dev:all": "npm run dev --workspaces --if-present"
   },
   "devDependencies": {
