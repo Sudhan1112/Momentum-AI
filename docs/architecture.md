@@ -1,122 +1,160 @@
-# Architecture & codebase tour
+# Architecture
 
-## How it works (contributor flows)
+## Current product surface
 
-These paths are the fastest way to navigate the codebase.
+The implemented product is a planning and execution workspace for:
 
-### 1. Opening a document and connecting to live sync
+- project portfolio management
+- project task management
+- daily planner views
+- workspace and project execution scoring
+- recovery planning
+- goal simulation
+- project timeline, decisions, and Ask Momentum
+- AI-assisted task extraction, work breakdown, and briefing
+- momentum flow / execution-plan generation
 
-1. User opens `/doc/[id]` (`apps/web/src/app/doc/[id]/page.tsx`).
-2. The page uses **`useCollabEditor`** (`apps/web/src/hooks/useCollabEditor.ts`): creates a **`Y.Doc`** and **`Awareness`** (presence/cursors).
-3. The hook opens a Socket.IO client to `NEXT_PUBLIC_SYNC_SERVER_URL`, passing the Supabase **`access_token`** in `auth.token`.
-4. On **`connect`**, the client emits **`doc:join`** with the document id.
-5. The sync server (`apps/sync-server/src/index.ts`) verifies the user in **`io.use`**, checks membership with **`assertDocumentAccess`**, joins the Socket.IO room, then:
-   - Loads or creates the server-side Yjs doc via **`getOrCreateDoc`** (`apps/sync-server/src/yjsManager.ts`) — seeded from **`documents.yjs_state`** in Postgres if present.
-   - Emits **`doc:load`** (full state as base64) to that client.
-   - Sends **`awareness:sync`** so presence can align.
-6. The client applies **`doc:load`** with `Y.applyUpdate(..., 'remote')` so TipTap stays in sync with the server’s canonical doc.
+The older collaborative documents product is retired from the current codebase and database patches.
 
-**Rejection path:** if the user cannot access the document, the server emits **`doc:rejected`**; the hook surfaces **`syncRejectMessage`** and stops treating the session as connected.
-
-### 2. Typing and persisting the document body
-
-1. TipTap edits mutate the shared **`Y.Doc`**.
-2. Local Yjs updates (non-remote origin) are sent as **`doc:update`** with a base64-encoded update.
-3. The server **`resolveSocketAccess`** requires a **write** role (`owner`, `admin`, `editor`), applies the update with **`Y.applyUpdate`**, **`schedulePersist`**, and broadcasts **`doc:broadcast`** to everyone else in the room.
-4. **`schedulePersist`** batches writes on a short interval and persists **`documents.yjs_state`** via the Supabase service role (`yjsManager.ts`).
-
-Comments, sharing, and version rows are **not** carried on this socket path; only the Yjs document state is.
-
-### 3. Presence (cursors / who’s online)
-
-1. Awareness changes from the local client emit **`awareness:update`**.
-2. The server echoes **`awareness:diff`** to peers; **`applyAwarenessUpdate`** runs on the client.
-3. Cursor colors are chosen in **`useCollabEditor`** using **`cursorColors.ts`**.
-
-### 4. REST API vs realtime
-
-| Concern | Where it lives |
-| --- | --- |
-| Document list, create, share, access requests, versions, comments | Next.js **Route Handlers** under `apps/web/src/app/api/` → Supabase (RLS + server checks). |
-| Live body text + presence | **Yjs + Socket.IO** on `apps/sync-server`. |
-
-Main editor UI: **`Editor.tsx`**. Comment UI and API: **`CommentsPanel.tsx`**, **`/api/documents/[id]/comments`**.
-
-## System diagram
+## Runtime architecture
 
 ```mermaid
 graph TB
-    subgraph Frontend["Frontend (e.g. Vercel)"]
-        A[Next.js App Router]
-        B[TipTap / ProseMirror]
-        C[Yjs Doc + Awareness]
-    end
-    subgraph Sync["Sync server (e.g. Render)"]
-        D[Express + Socket.IO]
-        E[Live Yjs layer + optimized persistence]
-    end
-    subgraph Supabase["Supabase"]
-        F[Auth]
-        G[PostgreSQL + RLS]
-    end
-    A -->|API routes| G
-    A -->|OAuth| F
+    A[Next.js App Router in apps/web]
+    B[Route Handlers in apps/web/src/app/api]
+    C[Domain services in apps/web/src/lib/momentum]
+    D[Supabase Auth]
+    E[Supabase Postgres]
+    F[Gemini via AI executor]
+
+    A --> B
     B --> C
-    C -->|doc:update / doc:broadcast| D
-    D --> E
-    E -->|persist yjs_state| G
-    D -->|JWT + access checks| F
-    D -->|member / role checks| G
+    C --> E
+    B --> D
+    C --> F
 ```
 
-## Sequence: one edit propagates
+## Main layers
 
-```mermaid
-sequenceDiagram
-    participant U as Browser
-    participant Y as Yjs client
-    participant S as Sync server
-    participant DB as PostgreSQL
-    participant P as Peer browsers
+### UI
 
-    U->>Y: TipTap transaction
-    Y->>S: doc:update (base64)
-    S->>S: verify write role, apply update
-    S->>DB: batched persist of yjs_state
-    S->>P: doc:broadcast
-    P->>P: apply remote update
-```
+Routes and pages live under `apps/web/src/app`.
 
-## Tech stack
+Implemented user-facing pages:
 
-| Layer | Stack |
-| --- | --- |
-| App | Next.js 14, React 18, TypeScript, Tailwind |
-| Editor | TipTap v2 (ProseMirror) |
-| CRDT | Yjs |
-| Realtime transport | Socket.IO |
-| Data & auth | Supabase (Postgres, Auth, RLS) |
-| Monorepo | npm workspaces (`apps/web`, `apps/sync-server`) |
+- `/` execution home
+- `/projects` portfolio list
+- `/projects/[id]` project workspace
+- `/planner` daily planner
+- `/momentum` workspace execution intelligence
+- `/login` auth entry point
 
-## Repository layout
+### API
 
-```plaintext
+HTTP endpoints live under `apps/web/src/app/api`.
+
+They are all Next.js route handlers and generally follow this pattern:
+
+1. Validate the signed-in user with `requireSession`
+2. Enforce project or task access via `authz.ts`
+3. Delegate to a domain service under `src/lib/momentum`
+4. Return JSON or a normalized error response
+
+### Domain services
+
+Core domain logic lives in `apps/web/src/lib/momentum`:
+
+- `projects/` project CRUD and members
+- `tasks/` task CRUD and validation
+- `planner/` deterministic day planning
+- `memory/` event journal, timeline, decisions, Ask Momentum
+- `ai/` capability execution, prompt registry, run logging
+- `scheduler/` execution-intelligence planning
+- `recovery-service.ts`
+- `simulation-service.ts`
+- `execution-score.ts`
+- `health-snapshot.ts`
+- `risk-scorer.ts`
+
+### Data
+
+Supabase is the system of record for:
+
+- auth and profile rows
+- projects, members, and tasks
+- project event journal
+- recovery plans
+- goal simulations
+- AI run logs and citations
+- momentum flow proposals and sessions
+- capacity profiles
+
+## Repository structure
+
+```text
 .
-├── package.json                 # npm workspaces; scripts: dev:web, dev:server, dev:all, build:*
-├── package-lock.json
-├── README.md
-├── vercel.json
-├── .env.example
-├── apps/
-│   ├── web/                     # Next.js 14 frontend
-│   └── sync-server/             # Socket.IO + Yjs
-└── supabase/
-    ├── schema.sql
-    └── patches/
+├─ apps/
+│  ├─ web/                 # active Next.js product
+│  └─ sync-server/         # leftover artifact, not an active workspace app
+├─ docs/                   # current documentation
+├─ supabase/
+│  ├─ schema.sql
+│  └─ patches/
+├─ package.json            # root workspace scripts
+└─ README.md
 ```
 
-(Full tree with file names lives in the repo; this is the structural spine.)
+## Important implementation notes
 
----
+### Auth and authorization
 
-| [← Previous: Getting started](getting-started.md) | [Handbook (root README)](../README.md#documentation-handbook) | [Next: API overview →](api-overview.md) |
+- Cookie-based session lookup happens in `src/lib/supabase/server.ts`.
+- Server-side privileged queries use `src/lib/supabase/admin.ts`.
+- Access control is enforced in `src/lib/momentum/authz.ts`.
+
+Roles:
+
+- `owner`
+- `admin`
+- `editor`
+- `commenter`
+- `viewer`
+
+Current write paths mainly use:
+
+- owner-only project mutation
+- owner/admin member management
+- owner/admin/editor task and recovery mutation
+- member-readable timeline, intelligence, simulation, and score views
+
+### Event-sourced project memory
+
+Project and task mutations are not just plain table updates. The app also records project history through RPC-backed event journal functions in Supabase.
+
+This powers:
+
+- timeline views
+- decisions with evidence
+- Ask Momentum evidence selection
+- AI citations tied to project activity
+
+### AI architecture
+
+AI routes use a shared executor pattern:
+
+1. Build deterministic data first
+2. Build a structured AI context
+3. Attempt a model call
+4. Fall back cleanly when AI is unavailable
+5. Persist AI runs and citations when applicable
+
+This means the product still returns usable results when the model is unavailable.
+
+### Momentum flow naming split
+
+The `momentum-flow` API name spans two implementations:
+
+- `scheduler/execution-intelligence-service.ts` generates and reads the newer execution-plan style proposals
+- `momentum-flow-service.ts` still owns proposal application and session updates against stored proposal/session tables
+
+That split exists in the current code and is worth preserving when making future changes.

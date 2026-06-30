@@ -1,51 +1,107 @@
 # Troubleshooting
 
-Common failures when running locally or in production, and where the app surfaces errors.
+## Auth fails with `401 Unauthorized`
 
-## Live sync (Socket.IO)
+Checks:
 
-### Cannot connect / “Could not reach the live sync server”
+- confirm `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- confirm the user is signed in
+- confirm OAuth callback URL points to `/auth/callback`
 
-- **Symptom:** Editor status shows a connection issue; console may log `[sync] connect_error`.
-- **Checks:** Sync process is running (`npm run dev:server` from repo root). `NEXT_PUBLIC_SYNC_SERVER_URL` in `apps/web/.env.local` matches the sync URL (e.g. `http://localhost:4000`). In production, use `https://` and allow the app origin in sync-server `CLIENT_URL` / CORS.
-- **Code:** `apps/web/src/hooks/useCollabEditor.ts` (`connect_error` handler).
+Relevant code:
 
-### `doc:rejected` after join or while editing
+- `apps/web/src/lib/supabase/server.ts`
+- `apps/web/src/app/auth/callback/route.ts`
+- `apps/web/src/lib/momentum/authz.ts`
 
-The server sends `{ reason: string }`. The client maps each code to a tooltip (same codes as [Sync server reference](sync-server-api.md#rejection-reasons)).
+## Server routes fail with a missing service key error
 
-| `reason` | What to do |
-| --- | --- |
-| `access_denied` | Confirm the user is owner or in `document_members` for that doc; verify document id exists. |
-| `write_forbidden` | Role is viewer or commenter; only owner/admin/editor may send `doc:update`. |
-| `presence_forbidden` | Membership may have changed; refresh. |
-| `invalid_update` / `invalid_document` | Bad payload or id; refresh and retry. If it persists, inspect server logs for Yjs/base64 errors. |
-| `server_error` | Sync server or DB persistence issue; check `apps/sync-server` logs and Supabase connectivity. |
+Symptom:
 
-**Code:** `apps/sync-server/src/index.ts` (emit reasons), `useCollabEditor.ts` (`messageForSyncRejectReason`).
+- server-side route throws an error mentioning `SUPABASE_SERVICE_KEY`
 
-### Editor badge: “Connection issue”
+Fix:
 
-**Code:** `apps/web/src/components/Editor.tsx` — shown when `statusError` (e.g. access load failed) **or** `syncRejectMessage` (sync path) is set.
+- set `SUPABASE_SERVICE_KEY` in `apps/web/.env.local`
 
-## REST API (Next.js route handlers)
+Relevant code:
 
-### `401 Unauthorized`
+- `apps/web/src/lib/supabase/admin.ts`
 
-Routes use the Supabase session from cookies (`createClient()` in server handlers). If the user is not signed in, APIs return `{ error: 'Unauthorized' }` (or similar).
+## Project or task routes return `403 Forbidden`
 
-### `403` / `{ error: '...' }` with 4xx
+Checks:
 
-Sharing and access routes enforce owner/admin/editor rules in code; read the handler under `apps/web/src/app/api/documents/[id]/...` for the exact message.
+- confirm the user is the project owner or has a `project_members` row
+- confirm the required role for the route
 
-### `400` Invalid JSON (REST)
+Common role rules:
 
-Some routes use `apps/web/src/lib/api-route-errors.ts`. Malformed JSON or a non-object body can return **`400`** with `{ "error": "Invalid JSON body" }` or **`JSON body must be an object`**.
+- project update/delete: owner only
+- member add/remove: owner or admin
+- task create/update/delete: owner, admin, or editor
+- timeline and simulation reads: any member
 
-### Parsing JSON errors in the UI
+## AI routes fall back or return limited output
 
-**Code:** `apps/web/src/lib/http.ts` — helpers used by components to read `{ error?: string }` from responses.
+Checks:
 
----
+- confirm `GEMINI_API_KEY` is present
+- confirm model access works for `MOMENTUM_AI_MODEL`
 
-| [Handbook (root README)](../README.md#documentation-handbook) | [Sync server reference](sync-server-api.md) | [API overview](api-overview.md) |
+Expected behavior:
+
+- many AI features intentionally degrade to deterministic fallback output
+- AI run metadata is still logged when a real run succeeds
+
+Relevant areas:
+
+- `apps/web/src/lib/momentum/ai/executor.ts`
+- `apps/web/src/lib/momentum/ai/run-logger.ts`
+
+## Task update rejects due dates
+
+Symptom:
+
+- task write returns a validation error for `due_at`
+
+Cause:
+
+- task due dates cannot be after the project deadline
+
+Relevant code:
+
+- `apps/web/src/lib/momentum/tasks/task-service.ts`
+
+## Recovery plan creation returns a conflict
+
+Symptom:
+
+- route returns a conflict saying the project is healthy
+
+Fix:
+
+- send `force: true` to generate an exploratory recovery plan
+
+Relevant code:
+
+- `apps/web/src/app/api/projects/[id]/recovery-plans/route.ts`
+- `apps/web/src/lib/momentum/recovery-service.ts`
+
+## Momentum flow behavior seems inconsistent
+
+Cause:
+
+- generation/read paths use execution-intelligence services
+- apply/update paths still operate on stored proposal/session records
+
+Relevant code:
+
+- `apps/web/src/lib/momentum/scheduler/execution-intelligence-service.ts`
+- `apps/web/src/lib/momentum/scheduler/momentum-flow-service.ts`
+
+## Old docs mention documents or realtime collaboration
+
+That documentation is stale for the current product.
+
+The active app is project/task execution management, not the retired collaborative documents system.

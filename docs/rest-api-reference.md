@@ -1,190 +1,324 @@
-# REST API reference (Next.js route handlers)
+# REST API Reference
 
-Contracts for **`apps/web/src/app/api`**. Realtime sync is **not** covered here—see [Sync server reference](sync-server-api.md).
+This reference documents the APIs that are implemented today.
 
 ## Conventions
 
-| Topic | Detail |
-| --- | --- |
-| **Base URL** | Same origin as the Next app, path prefix **`/api`** |
-| **Content type** | `application/json` for bodies |
-| **Auth** | Supabase session via cookies (`createClient()` from `@/lib/supabase/server`). No session → **`401`** with `{ "error": "Unauthorized" }` unless noted |
-| **Errors** | JSON object **`{ "error": string }`** (human-readable). Status **`400`** validation, **`401`** auth, **`403`** forbidden, **`404`** not found, **`500`** server/DB |
-| **Invalid JSON** | **`400`** `{ "error": "Invalid JSON body" }` or `{ "error": "JSON body must be an object" }` where handlers use `@/lib/api-route-errors` |
-| **Client helpers** | `readResponsePayload`, `getResponseErrorMessage` in `apps/web/src/lib/http.ts` |
+- Base path: `/api`
+- Content type: JSON
+- Auth: Supabase session cookies
+- Error shape: `{ "error": string }`
 
----
+## Projects
 
-## `GET/POST /api/documents`
+### `GET /api/projects`
 
-**File:** `apps/web/src/app/api/documents/route.ts`
+Returns all projects the current user owns or belongs to.
 
-### `GET`
+### `POST /api/projects`
 
-Lists documents the user **owns** or **is a member of**, newest `updated_at` first.
+Creates a project.
 
-**Response `200`:** JSON array of objects:
+Request fields:
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `id`, `title`, `updated_at`, `created_at`, `owner_id` | string | Document row |
-| `owner` | object \| null | `profiles` shape: `id`, `email`, `full_name`, `avatar_url` |
-| `members` | array | `document_members` rows with embedded `profiles` |
+- `title` required
+- `description` optional
+- `target_deadline` optional
+- `goal_summary` optional
+- `execution_target_score` optional
 
-Empty list → **`200`** and body `[]`.
+Returns `201`.
 
-### `POST`
+### `GET /api/projects/:id`
 
-Creates a document; inserts owner row into `document_members` via service role.
+Returns one project plus `current_user_role`.
 
-**Request body (optional):** `{ "title"?: string }` — omit or `{}` for default **Untitled Document**.
+### `PATCH /api/projects/:id`
 
-**Response `200`:** Inserted `documents` row (Supabase `.select().single()`).
+Owner only.
 
----
+Accepted fields:
 
-## `GET/POST/PATCH /api/documents/{id}/access`
+- `title`
+- `description`
+- `target_deadline`
+- `goal_summary`
+- `execution_target_score`
+- `status`
+- `change_reason` optional event-journal reason
 
-**File:** `apps/web/src/app/api/documents/[id]/access/route.ts`  
-**Path param:** `id` — document UUID.
+### `DELETE /api/projects/:id`
 
-### `GET`
+Owner only. Returns `{ "success": true }`.
 
-Access state for the current user plus pending requests for moderators.
+## Project tasks
 
-**Response `200`:**
+### `GET /api/projects/:id/tasks`
 
-| Field | Type |
-| --- | --- |
-| `document` | `{ id, title }` |
-| `owner` | profile row |
-| `isOwner` | boolean |
-| `hasAccess` | boolean (owner or member) |
-| `role` | `"owner"` or member role or `null` |
-| `latestRequest` | access request + `profiles` + `current_role` or `null` |
-| `pendingRequests` | array (only when `canModerateAccessRequests`) |
-| `canModerateAccessRequests` | boolean (owner or admin member) |
-
-### `POST`
-
-Create or update a **pending** access request (non-owners).
-
-**Request body:** `{ "requested_role"?: string }` — must be one of `viewer`, `commenter`, `editor`, `admin` (default `editor` if missing).
-
-**Response `200`:** Access request row, or **`400`** for business rules (e.g. already owner, same role, invalid role).
-
-### `PATCH`
-
-Owner or **admin** approves or rejects a request.
-
-**Request body:** `{ "request_id": string, "status": "approved" | "rejected" }`
-
-**Response `200`:** Updated request row. **`403`** if not owner/admin. **`404`** if document or request missing.
-
----
-
-## `GET/POST/PATCH/DELETE /api/documents/{id}/share`
-
-**File:** `apps/web/src/app/api/documents/[id]/share/route.ts`
-
-### `GET`
-
-Member list with profiles; ensures a synthetic **owner** row if missing from `document_members`.
-
-**Response `200`:** Array of member objects with `profiles`.
-
-### `POST`
-
-Invite or upsert member (owner or admin).
-
-**Request body:** `{ "user_id": string, "role": string }` — role ∈ `viewer` | `commenter` | `editor` | `admin`.
-
-**Response `200`:** Array of affected member rows with profiles. **`500`** may include a special message if enum `app_role` lacks `admin` (see handler).
-
-### `PATCH`
-
-Same body as POST; may sync matching pending access requests.
-
-**Response `200`:** Single member object.
-
-### `DELETE`
-
-**Query:** `?user_id=` **or** JSON body `{ "user_id": string }`.
-
-**Response `200`:** `{ "success": true }`.
-
----
-
-## `GET/POST /api/documents/{id}/versions`
-
-**File:** `apps/web/src/app/api/documents/[id]/versions/route.ts`
-
-Requires document access (owner or any member).
-
-### `GET`
-
-**Response `200`:** Up to **100** versions, `created_at` descending. Each includes `yjs_state` (base64), `label`, `profiles`, etc.
-
-### `POST`
-
-**Request body:** `{ "yjs_state": string, "label"?: string }` — `yjs_state` required (base64). Default label **`Auto-save`**; **`Manual snapshot`** skips deduplication by binary state.
-
-**Response `200`:** Version row with profiles, or `{ "id": string, "skipped": true }` if deduped.
-
----
-
-## `GET/POST/PATCH/DELETE /api/documents/{id}/comments`
-
-**File:** `apps/web/src/app/api/documents/[id]/comments/route.ts`
-
-### `GET`
-
-**Response `200`:**
+Returns:
 
 ```json
 {
-  "role": "owner | admin | editor | commenter | viewer",
-  "can_comment": true,
-  "can_moderate": true,
-  "comments": [ /* normalized comments with author, resolver */ ]
+  "role": "owner",
+  "tasks": []
 }
 ```
 
-### `POST`
+### `POST /api/projects/:id/tasks`
 
-**Request body:** `{ "content": string, "selection_text"?: string }` — content required, max **2000** chars; selection max **400**.
+Write role required.
 
-**Response `200`:** Single comment object. **`403`** if role cannot comment.
+Accepted fields:
 
-### `PATCH`
+- `title` required
+- `description`
+- `status`
+- `priority`
+- `assignee_id`
+- `due_at`
+- `started_at`
+- `estimate_minutes`
+- `blocked_reason`
 
-**Request body:** `{ "comment_id": string, "content"?: string, "status"?: "open" | "resolved" }` — at least one of `content` / `status`.
+Returns `201`.
 
-**Response `200`:** Updated comment.
+## Tasks
 
-### `DELETE`
+### `GET /api/tasks/:id`
 
-**Query:** `?comment_id=` **or** body `{ "comment_id": string }`.
+Returns the task, linked project summary, and `current_user_role`.
 
-**Response `200`:** `{ "success": true }`.
+### `PATCH /api/tasks/:id`
 
----
+Write role required.
 
-## `GET /api/users/search`
+Accepted fields:
 
-**File:** `apps/web/src/app/api/users/search/route.ts`
+- all create-task fields
+- `actual_minutes`
+- `completed_at`
+- `change_reason`
 
-**Query:** `q` — email substring (case-insensitive). Missing or empty `q` → **`200`** `[]`.
+### `DELETE /api/tasks/:id`
 
-**Response `200`:** Up to **5** profile rows (`id`, `email`, `full_name`, `avatar_url`).
+Write role required.
 
----
+Optional query param:
 
-## Implementation notes
+- `reason`
 
-- Handlers use **`createAdminClient()`** where RLS or bulk queries require the service role; keys stay server-only.
-- **`parseJsonObject` / `parseJsonObjectOptional`** live in `apps/web/src/lib/api-route-errors.ts` for safe JSON parsing on selected routes.
+Returns `{ "success": true }`.
 
----
+### `GET /api/tasks/:id/risk`
 
-| [← Previous: API overview](api-overview.md) | [Handbook (root README)](../README.md#documentation-handbook) | [Next: Sync server reference →](sync-server-api.md) |
+Returns the computed risk score for a task and persists the latest snapshot.
+
+## Members
+
+### `GET /api/projects/:id/members`
+
+Member read access required.
+
+Returns:
+
+```json
+{
+  "role": "admin",
+  "members": []
+}
+```
+
+### `POST /api/projects/:id/members`
+
+Owner/admin only.
+
+Request fields:
+
+- `user_id`
+- `role`
+
+Returns `201`.
+
+### `DELETE /api/projects/:id/members/:userId`
+
+Owner/admin only.
+
+Returns `{ "success": true }`.
+
+## Execution and planner
+
+### `GET /api/momentum/execution-score`
+
+Returns workspace execution score and health.
+
+### `GET /api/projects/:id/execution-score`
+
+Returns:
+
+- `execution_score`
+- `health`
+- `recovery_eligibility`
+
+### `GET /api/planner/today`
+
+Returns the deterministic daily planner payload used by `/planner`.
+
+### `GET /api/momentum/brief`
+
+Returns the Momentum daily brief used by `/momentum`.
+
+The response may be AI-backed or fallback-driven depending on model availability.
+
+## Recovery and simulation
+
+### `GET /api/projects/:id/recovery-plans`
+
+Returns recovery plans for a project.
+
+### `POST /api/projects/:id/recovery-plans`
+
+Write role required.
+
+Optional request field:
+
+- `force: true` to generate an exploratory plan even when the project is healthy
+
+Returns `201`.
+
+### `POST /api/ai/simulate-goal`
+
+Project membership required.
+
+Accepted fields:
+
+- `project_id` required
+- `target_deadline`
+- `daily_work_hours`
+- `extra_daily_hours`
+- `delay_task_id`
+- `delay_days`
+- `shift_milestone_days`
+- `remove_completed_tasks`
+
+Returns `201`.
+
+## Project intelligence
+
+### `POST /api/projects/:id/intelligence`
+
+Member access required.
+
+Request fields:
+
+- `question` required
+
+Returns an Ask Momentum answer with evidence and AI/fallback metadata.
+
+### `GET /api/projects/:id/intelligence/timeline`
+
+Member access required.
+
+Optional query param:
+
+- `filter` one of `all`, `tasks`, `recovery`, `simulation`, `ai`, `decisions`
+
+### `GET /api/projects/:id/decisions`
+
+Member access required.
+
+Returns accepted decision records with linked evidence.
+
+### `POST /api/projects/:id/decisions`
+
+Write role required.
+
+Accepted fields:
+
+- `title`
+- `decision`
+- `reason`
+- `category`
+- `importance`
+- `evidence_event_ids`
+
+Returns `201`.
+
+## AI helper routes
+
+### `POST /api/ai/extract-tasks`
+
+If `project_id` is supplied, write role is required for that project.
+
+Accepted fields:
+
+- `text`
+- `project_id`
+- `document_id`
+
+Note: `document_id` is still accepted by the route, but the collaborative documents feature is retired from the current product.
+
+### `POST /api/ai/work-breakdown`
+
+Write role required.
+
+Accepted fields:
+
+- `project_id`
+- `goal`
+
+### `GET /api/ai/runs/:id`
+
+Readable by the AI run owner or a member of the linked project.
+
+Returns the run plus stored citations.
+
+## Momentum flow / execution plan
+
+### `GET /api/momentum-flow/today`
+
+Optional query param:
+
+- `project_id`
+
+Returns the latest execution plan for today if one exists.
+
+### `POST /api/momentum-flow/proposals`
+
+Optional request fields:
+
+- `project_id`
+- `schedule_date`
+
+Returns `201`.
+
+### `POST /api/momentum-flow/proposals/:id/apply`
+
+Request field:
+
+- `session_ids` optional array of selected session ids
+
+Important: this applies stored proposal/session data, not the newer advisory-only execution-intelligence plans.
+
+### `POST /api/momentum-flow/proposals/:id/explain`
+
+Returns:
+
+- `explanation`
+- `ai_run_id`
+- `mode`
+- `fallback_reason`
+
+### `PATCH /api/momentum-flow/sessions/:id`
+
+Accepted fields:
+
+- `start_at`
+- `end_at`
+- `status` one of `scheduled`, `locked`, `completed`, `skipped`
+- `is_locked`
+
+## Supporting route
+
+### `GET /api/users/search?q=...`
+
+Returns up to 5 matching profiles by email substring for authenticated users.

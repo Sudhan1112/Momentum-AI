@@ -1,34 +1,62 @@
-# Contributing to Lumina Write
+# Contributing
 
-**Single copy** of the contributing guide (all project Markdown except the [root README](../README.md) lives under **`docs/`**). Links below are **relative to `docs/`**.
+## Before you change code
 
-This file is **only** about how we collaborate on code (PRs, checks, secrets). It is **not** the setup guide—use [Getting started](getting-started.md) for that.
+Read these first:
 
-## Before you code
+1. [getting-started.md](getting-started.md)
+2. [architecture.md](architecture.md)
+3. [data-model.md](data-model.md)
+4. [api-overview.md](api-overview.md)
 
-1. **Environment and running the app** — follow [Getting started](getting-started.md) (clone, `npm install`, `.env`, database, `dev:server` / `dev:web`).
-2. **Architecture and APIs** — use the handbook in the [root README](../README.md#documentation-handbook) (*steps 1–8, including REST API reference and sync server docs*).
-3. **Something broken?** — see [Troubleshooting](troubleshooting.md).
+## Project layout
 
-## Project layout (reminder)
+- `apps/web` active Next.js application
+- `supabase` schema and patch files
+- `docs` maintained documentation
 
-| Path | Role |
-| --- | --- |
-| `apps/web` | Next.js app, UI, REST route handlers |
-| `apps/sync-server` | Socket.IO + Yjs realtime |
-| `supabase/` | SQL schema and patches |
+## Expectations for changes
 
-## Before you open a PR
+- keep docs aligned with implemented behavior
+- remove stale feature references instead of documenting planned work as if it exists
+- keep API docs consistent with route handlers
+- keep SQL/RLS helpers consistent with authz logic
 
-1. **Lint the web app:** from repo root, `npm run lint --workspace=apps/web` (or `cd apps/web && npm run lint`).
-2. **Describe the change:** what problem it solves and how you tested it (routes touched, socket events, SQL migrations, etc.).
-3. **Do not commit** `.env`, `.env.local`, or service-role keys.
-4. If you change **RLS or SQL**, say whether `schema.sql` and/or a file under `supabase/patches/` was updated.
+## Verification
 
-## Questions
+Run these from the repo root:
 
-Deep dives live in **docs/** with **Previous / Next** links on each page—start from the [handbook in the root README](../README.md#documentation-handbook).
+```bash
+npm run test --workspace=apps/web
+npm run lint --workspace=apps/web
+npm run build --workspace=apps/web
+```
 
----
+## If you touch Supabase SQL
 
-| [← Previous: Security & operations](security-and-operations.md) | [Handbook (root README)](../README.md#documentation-handbook) | [Begin again: Getting started →](getting-started.md) |
+Update the relevant files under `supabase/patches` and make sure any documentation about:
+
+- tables
+- enums
+- helper functions
+- RPC functions
+- retired features
+
+still matches the codebase.
+
+## If you touch APIs
+
+Update:
+
+- `docs/api-overview.md`
+- `docs/rest-api-reference.md`
+
+## If you touch product behavior
+
+Update:
+
+- `docs/architecture.md`
+- `docs/data-model.md`
+- `docs/troubleshooting.md`
+
+Only document features that are actually implemented in source and database patches.

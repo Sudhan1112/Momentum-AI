@@ -1,55 +1,142 @@
-# Data model & roles
+# Data Model
 
-## Database
+## Core entities
 
-Core tables: `profiles`, `documents` (includes `yjs_state`), `document_members`, `document_versions`, `document_comments`, `document_access_requests`.
+### Identity
 
-```mermaid
-erDiagram
-    PROFILES ||--o{ DOCUMENTS : owns
-    PROFILES ||--o{ DOCUMENT_MEMBERS : belongs_to
-    DOCUMENTS ||--o{ DOCUMENT_MEMBERS : has_members
-    DOCUMENTS ||--o{ DOCUMENT_VERSIONS : has_versions
-    DOCUMENTS ||--o{ DOCUMENT_COMMENTS : has_comments
-    DOCUMENTS ||--o{ DOCUMENT_ACCESS_REQUESTS : has_requests
-```
+- `profiles`
 
-**RLS:** Policies on `documents` and `document_members` must not recurse. This repo uses **`SECURITY DEFINER`** helpers in `schema.sql` (e.g. `is_document_member`, `is_document_owner`) to break cycles.
+### Projects and access
 
-## Role-based access
+- `projects`
+- `project_members`
 
-Roles are stored in Postgres as enum **`app_role`** on `document_members` (`viewer`, `commenter`, `editor`, `admin`, `owner`). The **document owner** is always `documents.owner_id`; they are not required to have a row in `document_members`, but the app may upsert an `owner` row for consistency.
+### Work management
 
-### What each role can do
+- `tasks`
+- `task_risk_scores`
 
-**Precedence:** On a document, **owner outranks admin**. The owner can **change or revoke any admin** (or any member) from Share; an admin **cannot** modify or remove the owner. Admins otherwise mirror the owner’s sharing powers for everyone who is not the owner.
+### AI and planning
 
-| Capability | owner | admin | editor | commenter | viewer |
-| --- | --- | --- | --- | --- | --- |
-| **Precedence** (1 = highest authority) | **1** | **2** | 3 | 4 | 5 |
-| Edit document body (live sync) | ✓ | ✓ | ✓ | | |
-| Live presence (see who’s online) | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Comments: add | ✓ | ✓ | ✓ | ✓ | |
-| Comments: resolve / moderate | ✓ | ✓ | ✓ | | |
-| Comments: read | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Share:** invite users, change roles, revoke (not the owner) | ✓ | ✓ | | | |
-| **Access requests:** approve or decline pending requests | ✓ | ✓ | | | |
-| Request a role or access (if not owner) | | | ✓ | ✓ | ✓ |
+- `ai_runs`
+- `ai_run_citations`
+- `goal_simulations`
+- `recovery_plans`
+- `momentum_flow_proposals`
+- `momentum_flow_sessions`
+- `user_capacity_profiles`
 
-**Owner-only:** rename the document (title), delete the document, and **cannot** be removed or have their role changed via sharing—the owner row is fixed in the UI and API.
+### Project memory
 
-**Admin vs owner:** Admins have the same **sharing and approval** powers as the owner for everyone **except** the owner account. Only the owner can transfer true ownership (not implemented as a separate action here—the owner remains `documents.owner_id`). Admins can assign or revoke **admin** for **other** members (not the owner). The **owner** always has final say: they can demote or revoke **any** admin, or change any role, because owner precedence is strictly above admin.
+- `project_events`
 
-**Viewer / commenter / editor:** They **cannot** open Share or approve requests. They **can** request access or a **role change** (viewer, commenter, editor, admin); those requests appear in the **editor notifications** (bell) for **both the owner and every admin** on that document, who can approve or decline.
+## Current enums in use
 
-### Where this is enforced
+### App roles
 
-- **HTTP:** `apps/web/src/app/api/documents/[id]/share/route.ts` — invite and role changes require **owner or admin** (`assertOwnerOrAdmin`). Targeting the document owner’s user id is rejected.
-- **HTTP:** `apps/web/src/app/api/documents/[id]/access/route.ts` — `GET` returns `pendingRequests` and `canModerateAccessRequests` for **owner and admin**; `PATCH` (approve/reject) allows **owner or admin**.
-- **Realtime:** `apps/sync-server` — live edits require a **write** role: `owner`, `admin`, or `editor` (`assertDocumentWriteAccess`).
+- `viewer`
+- `commenter`
+- `editor`
+- `admin`
+- `owner`
 
-If your database was created before `admin` existed on `app_role`, run `supabase/patches/ensure_app_role_admin.sql` once in the Supabase SQL Editor.
+### Project status
 
----
+- `active`
+- `paused`
+- `completed`
+- `archived`
 
-| [← Previous: Sync server reference](sync-server-api.md) | [Handbook (root README)](../README.md#documentation-handbook) | [Next: Security & operations →](security-and-operations.md) |
+### Task status
+
+- `backlog`
+- `todo`
+- `in_progress`
+- `blocked`
+- `done`
+- `cancelled`
+
+### Task priority
+
+- `low`
+- `medium`
+- `high`
+- `urgent`
+
+### AI capabilities
+
+- `extract_tasks`
+- `work_breakdown`
+- `blocker_detection`
+- `morning_brief`
+- `recovery_plan`
+- `goal_simulation`
+- `risk_explain`
+- `momentum_flow`
+
+## Role model
+
+Ownership is determined by `projects.owner_id`.
+
+Membership rows in `project_members` provide additional access for:
+
+- `admin`
+- `editor`
+- `commenter`
+- `viewer`
+
+In application code:
+
+- `owner`, `admin`, and `editor` are treated as write roles
+- `owner` and `admin` are treated as admin roles
+- project metadata mutation is currently owner-only
+
+## Project event journal
+
+The event journal is a first-class part of the data model, not just analytics.
+
+It records events such as:
+
+- project creation and updates
+- task lifecycle changes
+- deadline and priority changes
+- recovery generation
+- simulation creation
+- AI run completion or failure
+- decision acceptance
+
+This history drives:
+
+- timeline rendering
+- evidence-backed decisions
+- Ask Momentum evidence ranking
+
+## Mutation pattern
+
+Project and task writes often go through Supabase RPCs instead of direct row updates:
+
+- `create_project_with_events`
+- `update_project_with_events`
+- `create_task_with_events`
+- `update_task_with_events`
+- `delete_task_with_events`
+- `insert_project_event_specs`
+
+That keeps the canonical row state and the event journal aligned.
+
+## RLS and helper functions
+
+The schema uses helper functions to avoid recursive policy logic, including:
+
+- `is_project_member`
+- `is_project_owner`
+- `has_project_write_role`
+- `has_project_admin_role`
+
+These helpers back RLS across projects, tasks, recovery plans, simulations, and related records.
+
+## Retired document model
+
+The former documents feature has been explicitly removed by `supabase/patches/remove_documents_feature.sql`.
+
+Some legacy-compatible field names still appear in isolated places, such as citation source enums and `document_id` in task extraction inputs, but documents are not part of the active product model anymore.

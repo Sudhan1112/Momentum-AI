@@ -1,47 +1,90 @@
-# API overview
+# API Overview
 
-High-level reference for **HTTP** (Next.js Route Handlers) and **Socket.IO** (sync server).
+All implemented APIs are HTTP JSON endpoints under `apps/web/src/app/api`.
 
-**Full REST contracts** (bodies, fields, status codes): [REST API reference](rest-api-reference.md).  
-**Sync (Socket.IO) detail:** [Sync server reference](sync-server-api.md).
+## Auth model
 
-## HTTP API — route map
+Most routes require a signed-in Supabase user. Unauthenticated requests generally return:
 
-All routes live under `apps/web/src/app/api/`. They expect an authenticated Supabase session unless noted. Typical error shape: **`{ "error": string }`** with `401` when there is no session.
+```json
+{ "error": "Unauthorized" }
+```
 
-| Route | Methods | Source file | Purpose |
-| --- | --- | --- | --- |
-| `/api/documents` | `GET`, `POST` | `documents/route.ts` | List documents for the current user (owned + shared); create a new document. |
-| `/api/documents/[id]/access` | `GET`, `POST`, `PATCH` | `documents/[id]/access/route.ts` | List / create / moderate **access requests** (owner/admin for moderation). |
-| `/api/documents/[id]/share` | `GET`, `POST`, `PATCH`, `DELETE` | `documents/[id]/share/route.ts` | Members, invites, role changes (owner/admin; cannot target the owner user id). |
-| `/api/documents/[id]/versions` | `GET`, `POST` | `documents/[id]/versions/route.ts` | List and create **Yjs snapshot** metadata for version history. |
-| `/api/documents/[id]/comments` | `GET`, `POST`, `PATCH`, `DELETE` | `documents/[id]/comments/route.ts` | Threaded comments and resolve/delete by role rules. |
-| `/api/users/search` | `GET` | `users/search/route.ts` | Search profiles for **sharing** UI (authenticated). |
+## Route groups
 
-### Implementation notes for contributors
+### Projects
 
-- **Auth:** Handlers use `@/lib/supabase/server` (`createClient`) for the user session and `@/lib/supabase/admin` (`createAdminClient`) where service-role queries are required—**never** expose the service key to the browser.
-- **Responses:** Prefer consistent JSON errors so the UI can call shared helpers in `apps/web/src/lib/http.ts` (`getResponseErrorMessage`, etc.).
-- **RLS:** Tables touched from the browser still rely on Supabase RLS; API routes add **application-level** checks (owner/admin) that must stay aligned with [Data model & roles](data-model.md).
+- `GET /api/projects`
+- `POST /api/projects`
+- `GET /api/projects/:id`
+- `PATCH /api/projects/:id`
+- `DELETE /api/projects/:id`
+- `GET /api/projects/:id/tasks`
+- `POST /api/projects/:id/tasks`
+- `GET /api/projects/:id/members`
+- `POST /api/projects/:id/members`
+- `DELETE /api/projects/:id/members/:userId`
 
-For request/response **field-level** documentation, treat the route files as the source of truth (TypeScript types and `NextResponse.json` payloads).
+### Execution and health
 
-## Socket events (`apps/sync-server`)
+- `GET /api/momentum/execution-score`
+- `GET /api/projects/:id/execution-score`
+- `GET /api/planner/today`
+- `GET /api/momentum/brief`
 
-| Event | Direction | Role |
-| --- | --- | --- |
-| `doc:join` | Client → server | Enter room; receive `doc:load` |
-| `doc:load` | Server → client | Full Yjs state (base64) |
-| `doc:update` | Client → server | Yjs update (writers only) |
-| `doc:broadcast` | Server → others | Remote update |
-| `doc:rejected` | Server → client | No access or error ([reason codes](sync-server-api.md#rejection-reasons)) |
-| `awareness:update` / `awareness:sync` / `awareness:diff` | Both | Presence |
-| `presence:joined` | Server → room | Optional notify |
+### Project memory and intelligence
 
-**Next:** [REST API reference (full contracts) →](rest-api-reference.md) · [Sync server reference →](sync-server-api.md)
+- `POST /api/projects/:id/intelligence`
+- `GET /api/projects/:id/intelligence/timeline`
+- `GET /api/projects/:id/decisions`
+- `POST /api/projects/:id/decisions`
 
-**When something breaks:** [Troubleshooting →](troubleshooting.md)
+### Recovery and simulation
 
----
+- `GET /api/projects/:id/recovery-plans`
+- `POST /api/projects/:id/recovery-plans`
+- `POST /api/ai/simulate-goal`
 
-| [← Previous: Architecture](architecture.md) | [Handbook (root README)](../README.md#documentation-handbook) | [Next: REST API reference →](rest-api-reference.md) |
+### AI planning helpers
+
+- `POST /api/ai/extract-tasks`
+- `POST /api/ai/work-breakdown`
+- `GET /api/ai/runs/:id`
+
+### Momentum flow / execution planning
+
+- `GET /api/momentum-flow/today`
+- `POST /api/momentum-flow/proposals`
+- `POST /api/momentum-flow/proposals/:id/apply`
+- `POST /api/momentum-flow/proposals/:id/explain`
+- `PATCH /api/momentum-flow/sessions/:id`
+
+### Tasks and supporting lookups
+
+- `GET /api/tasks/:id`
+- `PATCH /api/tasks/:id`
+- `DELETE /api/tasks/:id`
+- `GET /api/tasks/:id/risk`
+- `GET /api/users/search`
+
+## Permission model at a glance
+
+- project members can read most project-scoped data
+- project owners mutate project metadata
+- project owners/admins manage members
+- project write roles (`owner`, `admin`, `editor`) create and update tasks
+- simulations are member-readable
+- AI run details are readable by the run owner or a member of the linked project
+
+## Error conventions
+
+Common status patterns:
+
+- `400` invalid input
+- `401` no session
+- `403` forbidden
+- `404` missing project, task, proposal, or run
+- `409` conflict for state-dependent actions
+- `500` unexpected server or database failure
+
+See [rest-api-reference.md](rest-api-reference.md) for the current contracts and request shapes.

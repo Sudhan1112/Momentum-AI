@@ -1,50 +1,70 @@
-# Getting started
+# Getting Started
 
-**Requirements:** Node.js 18+, npm, and a Supabase project.
+Momentum AI is currently implemented as a Supabase-backed Next.js app in `apps/web`.
 
-## Install and env
+## Requirements
+
+- Node.js 18+
+- npm
+- A Supabase project
+
+## Install
 
 ```bash
-git clone https://github.com/Sudhan1112/Lumina-Write-editor.git
-cd Lumina-Write-editor
 npm install
-cp .env.example apps/web/.env.local
-cp .env.example apps/sync-server/.env
 ```
 
-Edit **`apps/web/.env.local`** and **`apps/sync-server/.env`** using the comments in [`.env.example`](../.env.example). Never commit real keys.
+## Environment
 
-## Database
+Copy the values from [`.env.example`](../.env.example) into `apps/web/.env.local`.
 
-On a **new** Supabase project, run [`supabase/schema.sql`](../supabase/schema.sql) in the SQL Editor.
+Required for the web app:
 
-On an **existing** database, apply patches under [`supabase/patches/`](../supabase/patches/) in a sensible order (see notes in [Data model & roles](data-model.md)).
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_KEY`
+
+Optional but used by AI-backed routes:
+
+- `GEMINI_API_KEY`
+- `MOMENTUM_AI_MODEL`
+
+Notes:
+
+- The app supports email/password auth and Google OAuth.
+- OAuth redirects return through `apps/web/src/app/auth/callback/route.ts`.
+- `NEXT_PUBLIC_SYNC_SERVER_URL` still exists in `.env.example`, but the current workspace does not expose an active sync-server app through npm workspaces.
+
+## Database setup
+
+Run the SQL in this order on a fresh Supabase project:
+
+1. `supabase/schema.sql`
+2. The files in `supabase/patches/`
+
+Important patches include:
+
+- project and task tables
+- project role helpers and RLS helpers
+- project event journal RPCs
+- recovery plans
+- goal simulations
+- AI run logging
+- momentum flow proposal/session storage
+- `remove_documents_feature.sql` to remove the retired documents feature
 
 ## Run locally
 
-Two terminals, or one command:
-
 ```bash
-npm run dev:server   # sync server → default http://localhost:4000
-npm run dev:web      # Next.js → default http://localhost:3000
+npm run dev:web
 ```
 
+The app runs from `apps/web`.
+
+## Verification
+
 ```bash
-npm run dev:all
+npm run test --workspace=apps/web
+npm run lint --workspace=apps/web
+npm run build --workspace=apps/web
 ```
-
-### Root scripts (reference)
-
-| Script | Purpose |
-| --- | --- |
-| `npm run dev:web` | Next.js dev server |
-| `npm run dev:server` / `dev:sync-server` | Sync server |
-| `npm run dev:all` | `dev` in all workspaces that define it |
-| `npm run build:web` | Production build for the web app |
-| `npm run build:server` | Compile sync-server to `dist/` |
-
-If the app runs but **live sync fails**, see [Troubleshooting](troubleshooting.md).
-
----
-
-| [← Handbook (root README)](../README.md#documentation-handbook) | [Next: Architecture & codebase tour →](architecture.md) |
