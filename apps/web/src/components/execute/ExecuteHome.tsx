@@ -41,17 +41,63 @@ export function ExecuteHome() {
     ['Needs attention',metrics.overdue + metrics.blocked,'',AlertTriangle],
   ]
   return <AppShell><main className="fluent-page pb-24">
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="fluent-kicker">Portfolio dashboard</p><h1 className="mt-1 text-2xl font-semibold">Good work starts with a clear plan</h1><p className="mt-1 text-sm text-[#616161]">{brief?.welcome || plan.brief.narrative}</p></div><div className="flex gap-2"><Link href="/planner" className="fluent-button-secondary">My work</Link><Link href="/projects" className="fluent-button"><FolderKanban className="h-4 w-4" /> View projects</Link></div></div>
-    {error && <div className="mt-4 flex items-center justify-between rounded border border-[#f1bbbc] bg-[#fdf3f4] p-3 text-[#a4262c]"><span>{error}</span><button onClick={() => void load()} className="fluent-button-secondary"><RefreshCw className="h-4 w-4" /> Retry</button></div>}
-    {loading ? <div className="mt-5 flex h-96 items-center justify-center fluent-card"><Loader2 className="h-5 w-5 animate-spin text-[#0f6cbd]" /></div> : <>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {cards.map(([label,value,suffix,Icon]) => <section key={label} className="fluent-card p-4"><div className="flex items-center justify-between text-[#616161]"><span className="text-xs font-semibold">{label}</span><Icon className="h-4 w-4" /></div><p className="mt-3 text-2xl font-semibold">{value} <span className="text-xs font-normal text-[#616161]">{suffix}</span></p></section>)}
+    <section className="workspace-hero flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+      <div className="space-y-2">
+        <p className="fluent-kicker">Portfolio dashboard</p>
+        <div className="space-y-2">
+          <h1 className="max-w-3xl text-[32px] font-semibold tracking-[-0.035em] text-[#101828] sm:text-[38px]">Good work starts with a clear plan</h1>
+          <p className="max-w-3xl text-sm leading-6 text-[#667085]">{brief?.welcome || plan.brief.narrative}</p>
+        </div>
       </div>
-      <div className="mt-4 grid gap-4 xl:grid-cols-[1.3fr_.7fr]">
-        <section className="fluent-card overflow-hidden"><header className="flex items-center justify-between border-b border-[#e0e0e0] px-4 py-3"><div><h2 className="font-semibold">Projects overview</h2><p className="text-xs text-[#616161]">Current portfolio health</p></div><Link href="/projects" className="text-sm font-semibold text-[#0f6cbd]">All projects</Link></header>
-          {plan.projects.length === 0 ? <div className="p-10 text-center text-[#616161]">No active projects yet.</div> : <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-sm"><thead><tr className="h-9 bg-[#fafafa] text-left text-xs text-[#616161]"><th className="px-4">Project</th><th>Open work</th><th>Blocked</th><th>Overdue</th><th>Status</th></tr></thead><tbody>{plan.projects.map((project) => <tr key={project.id} className="h-12 border-t border-[#ededed]"><td className="px-4"><Link className="font-semibold text-[#0f6cbd]" href={`/projects/${project.id}`}>{project.title}</Link></td><td>{project.open_tasks}</td><td>{project.blocked_tasks}</td><td>{project.overdue_tasks}</td><td><span className={project.blocked_tasks || project.overdue_tasks ? 'text-[#c50f1f]' : 'text-[#107c10]'}>{project.blocked_tasks || project.overdue_tasks ? 'At risk' : 'On track'}</span></td></tr>)}</tbody></table></div>}
+      <div className="flex flex-wrap gap-2">
+        <Link href="/planner" className="fluent-button-secondary">My work</Link>
+        <Link href="/projects" className="fluent-button"><FolderKanban className="h-4 w-4" /> View projects</Link>
+      </div>
+    </section>
+    {error && <div className="fluent-panel flex items-center justify-between gap-3 border-[#f1bbbc] bg-[#fdf3f4] px-4 py-3 text-[#a4262c]"><span className="text-sm">{error}</span><button onClick={() => void load()} className="fluent-button-secondary"><RefreshCw className="h-4 w-4" /> Retry</button></div>}
+    {loading ? <div className="fluent-panel flex h-96 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-[#0f6cbd]" /></div> : <>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {cards.map(([label,value,suffix,Icon]) => <section key={label} className="workspace-stat">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#667085]">{label}</p>
+              <p className="mt-3 text-[30px] font-semibold tracking-tight text-[#101828]">{value}<span className="ml-1 text-xs font-medium text-[#98a2b3]">{suffix}</span></p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#eaf4ff] text-[#0f6cbd]">
+              <Icon className="h-4 w-4" />
+            </div>
+          </div>
+        </section>)}
+      </div>
+      <div className="grid gap-5 xl:grid-cols-[1.35fr_.65fr]">
+        <section className="fluent-panel overflow-hidden">
+          <header className="fluent-section-header">
+            <div>
+              <h2 className="fluent-section-title">Projects overview</h2>
+              <p className="fluent-section-copy">Current portfolio health</p>
+            </div>
+            <Link href="/projects" className="text-sm font-semibold text-[#0f6cbd]">All projects</Link>
+          </header>
+          {plan.projects.length === 0 ? <div className="p-6"><div className="fluent-empty">No active projects yet. Create a project to start tracking work across the portfolio.</div></div> : <div className="fluent-table-wrap"><table className="fluent-table min-w-[640px]"><thead><tr><th>Project</th><th>Open work</th><th>Blocked</th><th>Overdue</th><th>Status</th></tr></thead><tbody>{plan.projects.map((project) => <tr key={project.id}><td><Link className="font-semibold text-[#0f6cbd]" href={`/projects/${project.id}`}>{project.title}</Link></td><td>{project.open_tasks}</td><td>{project.blocked_tasks}</td><td>{project.overdue_tasks}</td><td><span className={project.blocked_tasks || project.overdue_tasks ? 'fluent-badge-red' : 'fluent-badge-green'}>{project.blocked_tasks || project.overdue_tasks ? 'At risk' : 'On track'}</span></td></tr>)}</tbody></table></div>}
         </section>
-        <section className="fluent-card overflow-hidden"><header className="border-b border-[#e0e0e0] px-4 py-3"><h2 className="font-semibold">Needs attention</h2><p className="text-xs text-[#616161]">Priority work across your portfolio</p></header><div className="divide-y divide-[#ededed]">{attention.length ? attention.map((task) => <Link key={task.id} href={`/projects/${task.project_id}`} className="flex items-center gap-3 p-3 hover:bg-[#f7f9fb]"><span className={`h-2 w-2 rounded-full ${task.status === 'blocked' ? 'bg-[#c50f1f]' : 'bg-[#f7630c]'}`} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{task.title}</p><p className="truncate text-xs text-[#616161]">{task.project_title}</p></div><ArrowRight className="h-4 w-4 text-[#616161]" /></Link>) : <p className="p-8 text-center text-sm text-[#616161]">Nothing needs attention.</p>}</div></section>
+        <section className="fluent-panel overflow-hidden">
+          <header className="fluent-section-header">
+            <div>
+              <h2 className="fluent-section-title">Needs attention</h2>
+              <p className="fluent-section-copy">Priority work across your portfolio</p>
+            </div>
+          </header>
+          <div className="divide-y divide-[#eef2f6]">
+            {attention.length ? attention.map((task) => <Link key={task.id} href={`/projects/${task.project_id}`} className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-[#f8fbff]">
+              <span className={`h-2.5 w-2.5 rounded-full ${task.status === 'blocked' ? 'bg-[#c50f1f]' : 'bg-[#f7630c]'}`} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-[#101828]">{task.title}</p>
+                <p className="mt-0.5 truncate text-xs text-[#667085]">{task.project_title}</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-[#98a2b3]" />
+            </Link>) : <div className="p-6"><div className="fluent-empty">Nothing needs attention right now.</div></div>}
+          </div>
+        </section>
       </div>
     </>}
   </main></AppShell>

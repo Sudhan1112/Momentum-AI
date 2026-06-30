@@ -8,12 +8,11 @@ export const metadata: Metadata = {
   description: 'Momentum AI is an intelligent project management workspace for planning and executing team work.',
   icons: {
     icon: [
-      { url: '/icon.svg?v=5', type: 'image/svg+xml' },
-      { url: '/brand/mark-gauge.svg?v=5', type: 'image/svg+xml' },
-      { url: '/brand/logo-32.png?v=5', sizes: '32x32', type: 'image/png' },
-      { url: '/brand/logo.ico?v=5', type: 'image/x-icon' },
+      { url: '/icon.svg?v=6', type: 'image/svg+xml' },
+      { url: '/brand/logo-32.png?v=6', sizes: '32x32', type: 'image/png' },
+      { url: '/brand/logo.ico?v=6', type: 'image/x-icon' },
     ],
-    apple: [{ url: '/brand/logo-180.png?v=5', sizes: '180x180', type: 'image/png' }],
+    apple: [{ url: '/brand/logo-180.png?v=6', sizes: '180x180', type: 'image/png' }],
   },
 }
 

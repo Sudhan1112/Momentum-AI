@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
-import { BarChart3, CalendarDays, ChevronLeft, ChevronRight, FolderKanban, Gauge, LayoutDashboard } from 'lucide-react'
+import { BarChart3, CalendarDays, ChevronLeft, ChevronRight, FolderKanban, LayoutDashboard } from 'lucide-react'
 
 import { displayNameForUser } from '@/lib/avatar'
 import { UserAvatar } from '@/components/shell/UserAvatar'
@@ -33,18 +33,31 @@ export function Sidebar({
   const displayName = displayNameForUser(user)
 
   return (
-    <aside className={`hidden shrink-0 self-start border-r border-[#e0e0e0] bg-[linear-gradient(180deg,#ffffff_0%,#f7f8fb_100%)] px-3 py-3 text-[#242424] lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:overflow-hidden ${collapsed ? 'w-[88px]' : 'w-[248px]'}`}>
-      <Link href="/" className={`flex items-center rounded-2xl border border-[#e4e7ec] bg-white px-2.5 py-2 shadow-[0_8px_24px_rgba(15,108,189,0.08)] ${collapsed ? 'justify-center' : 'gap-3'}`}>
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#c57b3f_0%,#9a5b2b_100%)] text-white shadow-[0_10px_22px_rgba(154,91,43,0.22)]">
-          <Gauge className="h-5 w-5" />
+    <aside
+      className={`hidden shrink-0 self-start border-r border-[#18334f] bg-[#0b2138] px-3 py-5 text-white shadow-[12px_0_36px_rgba(11,33,56,.1)] transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:overflow-hidden ${
+        collapsed ? 'w-[76px]' : 'w-[252px]'
+      }`}
+    >
+      <Link
+        href="/"
+        className={`flex h-12 items-center px-1 ${
+          collapsed ? 'justify-center' : 'gap-3'
+        }`}
+      >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1687e6] text-white shadow-[0_8px_20px_rgba(22,135,230,.24)]">
+          <span className="text-lg font-black tracking-[-0.08em]">M</span>
         </div>
-        {!collapsed && <div className="min-w-0">
-          <p className="truncate text-base font-bold tracking-tight">Momentum AI</p>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#0f6cbd]">Project workspace</p>
-        </div>}
+        {!collapsed && (
+          <div className="min-w-0">
+            <p className="truncate text-[16px] font-bold tracking-[-0.02em] text-white">Momentum AI</p>
+            <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-[#79bdf2]">Execution workspace</p>
+          </div>
+        )}
       </Link>
 
-      <nav className={`mt-6 space-y-2 ${collapsed ? 'px-1' : ''}`}>
+      <div className="mx-1 mt-5 h-px bg-[#24415d]" />
+
+      <nav className={`mt-5 space-y-1.5 ${collapsed ? '' : 'px-0.5'}`}>
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = isActive(pathname, href)
           return (
@@ -52,51 +65,55 @@ export function Sidebar({
               key={href}
               href={href}
               title={collapsed ? label : undefined}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+              className={`relative flex h-11 items-center rounded-xl text-sm font-semibold transition ${
                 active
-                  ? 'bg-[#eaf3ff] text-[#0f6cbd] shadow-[inset_0_1px_0_rgba(255,255,255,0.86)]'
-                  : 'text-[#4a4a4a] hover:bg-white hover:text-[#111827]'
-              }`}
+                  ? 'bg-[#1687e6] text-white shadow-[0_8px_18px_rgba(0,90,170,.24)]'
+                  : 'text-[#a9bfd5] hover:bg-[#12304d] hover:text-white'
+              } ${collapsed ? 'justify-center px-0' : 'gap-3 px-3'}`}
             >
-              <Icon className="h-4 w-4" strokeWidth={active ? 2.3 : 1.9} />
-              {!collapsed && label}
+              {active && !collapsed && <span className="absolute left-0 h-5 w-[3px] rounded-r-full bg-white" />}
+              <div className="flex h-8 w-8 items-center justify-center">
+                <Icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.2 : 1.95} />
+              </div>
+              {!collapsed && <span className="truncate">{label}</span>}
             </Link>
           )
         })}
       </nav>
 
-      <div className="mt-auto space-y-3">
-        {!collapsed ? (
-          <div className="rounded-2xl border border-[#dce6f6] bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fe_100%)] p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0f6cbd]">Today</p>
-            <p className="mt-2 text-sm leading-5 text-[#3f4754]">Work the next action, clear blockers fast, and let the schedule stay visible.</p>
-          </div>
-        ) : (
-          <div className="flex justify-center">
-            <div className="rounded-2xl border border-[#dce6f6] bg-white p-2 shadow-sm">
-              <UserAvatar user={user} size="sm" rounded="lg" />
+      <div className="mt-auto space-y-3 pt-5">
+        {!collapsed && (
+          <div className="flex items-center gap-3 border-t border-[#24415d] px-1 pt-4">
+            <UserAvatar user={user} size="sm" rounded="lg" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-white">{displayName}</p>
+              <p className="truncate text-xs text-[#93aac1]">{user?.email ?? 'Signed in'}</p>
             </div>
           </div>
         )}
 
-        {!collapsed && (
-          <div className="flex items-center gap-3 rounded-2xl border border-[#e4e7ec] bg-white px-3 py-3">
+        {collapsed && (
+          <div className="flex justify-center border-t border-[#24415d] pt-4">
             <UserAvatar user={user} size="sm" rounded="lg" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-[#111827]">{displayName}</p>
-              <p className="truncate text-xs text-[#667085]">{user?.email ?? 'Signed in'}</p>
-            </div>
           </div>
         )}
 
         <button
           type="button"
           onClick={onToggle}
-          className={`flex h-10 items-center rounded-xl border border-[#e4e7ec] bg-white text-[#475467] transition hover:border-[#cbd5e1] hover:bg-[#f8fafc] ${collapsed ? 'justify-center' : 'px-3'}`}
+          className={`flex h-10 items-center rounded-xl text-[#91abc4] transition hover:bg-[#12304d] hover:text-white ${
+            collapsed ? 'justify-center px-0' : 'px-2'
+          }`}
           aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
           title={collapsed ? 'Expand navigation' : undefined}
         >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="mr-2 h-4 w-4" /> Collapse</>}
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <>
+              <ChevronLeft className="mr-2 h-4 w-4" /> Collapse
+            </>
+          )}
         </button>
       </div>
     </aside>

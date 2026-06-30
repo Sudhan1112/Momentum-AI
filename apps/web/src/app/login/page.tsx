@@ -3,7 +3,17 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { CheckCircle2, FileText, Loader2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowRight,
+  BrainCircuit,
+  CalendarDays,
+  FolderKanban,
+  Loader2,
+  Sparkles,
+  Target,
+} from 'lucide-react'
+
 import { createClient } from '@/lib/supabase/client'
 import { LoginButton } from '@/components/LoginButton'
 
@@ -61,168 +71,280 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col lg:flex-row" style={{ background: 'linear-gradient(135deg, #f7f2e9 0%, #fbf7f0 48%, #efe7db 100%)', color: '#1f2937' }}>
-      
-      {/* ── Background Ambient Orbs ── */}
-      <div className="fixed -left-[12%] top-[-10%] h-[48vh] w-[42vw] rounded-full blur-[120px] opacity-50 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(154,91,43,0.18) 0%, transparent 72%)' }} />
-      <div className="fixed bottom-[-12%] right-[-10%] h-[40vh] w-[36vw] rounded-full blur-[120px] opacity-45 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(36,55,43,0.16) 0%, transparent 72%)' }} />
+    <div className="relative min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,#dcecff_0%,#f5f9ff_32%,#f7fbff_54%,#eef4fb_100%)] text-[#0f172a] lg:h-screen lg:min-h-0 lg:overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(15,108,189,0.05)_1px,transparent_1px),linear-gradient(rgba(15,108,189,0.05)_1px,transparent_1px)] bg-[size:36px_36px] opacity-60" />
+      <div className="pointer-events-none absolute left-[-12%] top-[-8%] h-[32rem] w-[32rem] rounded-full bg-[radial-gradient(circle,rgba(15,108,189,0.22)_0%,rgba(15,108,189,0)_68%)] blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[-12%] right-[-10%] h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle,rgba(17,94,163,0.18)_0%,rgba(17,94,163,0)_68%)] blur-3xl" />
 
-      {/* ── Left Column: Hero ── */}
-      <div className="relative flex flex-col justify-between px-6 py-12 lg:w-5/12 lg:px-16 lg:py-20 z-10">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: 'linear-gradient(135deg, #c57b3f 0%, #9a5b2b 100%)', boxShadow: '0 10px 24px rgba(154,91,43,0.22)' }}>
-              <FileText className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-lg font-bold tracking-tight">Momentum AI</span>
-          </Link>
-        </div>
-
-        <div className="mt-16 sm:mt-24 lg:mt-0">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold" style={{ background: 'rgba(255,255,255,0.72)', borderColor: '#e8decf', color: '#6b5f52' }}>
-            <span className="flex h-2 w-2 rounded-full bg-[#9a5b2b]" />
-            Momentum AI workspace
-          </div>
-          
-          <h1 className="text-4xl font-light leading-[1.15] tracking-tight sm:text-5xl lg:text-6xl" style={{ fontFamily: 'Newsreader, Georgia, serif' }}>
-            A calmer desk <br className="hidden lg:block"/>
-            for writing that <span className="italic" style={{ color: '#9a5b2b' }}>flows</span>.
-          </h1>
-          
-          <p className="mt-6 max-w-md text-lg leading-relaxed" style={{ color: '#6b5f52' }}>
-            Momentum AI brings projects, schedules, teams, and execution intelligence together so meaningful work keeps moving.
-          </p>
-
-          <div className="mt-10 flex flex-wrap gap-3">
-            {[
-              { icon: <FileText className="w-4 h-4 text-[#c57b3f]" />, label: 'Focused Writing' },
-              { icon: <CheckCircle2 className="w-4 h-4 text-[#9a5b2b]" />, label: 'Smart Templates' },
-              { icon: <CheckCircle2 className="w-4 h-4 text-[#2f6b4f]" />, label: 'Real-time Sync' }
-            ].map((feature, i) => (
-              <div key={i} className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium" style={{ background: 'rgba(255,255,255,0.76)', borderColor: '#e8decf' }}>
-                {feature.icon}
-                {feature.label}
+      <div className="relative mx-auto flex min-h-screen w-full max-w-[1600px] flex-col lg:grid lg:h-full lg:min-h-0 lg:grid-cols-[1.08fr_0.92fr]">
+        <section className="flex flex-col px-6 pb-14 pt-10 sm:px-8 lg:min-h-0 lg:px-12 lg:py-7 xl:px-16 xl:py-8">
+          <div className="flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f6cbd_0%,#115ea3_100%)] text-white shadow-[0_14px_30px_rgba(15,108,189,0.28)]">
+                <Sparkles className="h-5 w-5" />
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-16 hidden items-center justify-start lg:flex">
-          <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#8a7f72', opacity: 0.9 }}>
-            © 2026 Momentum AI
-          </p>
-        </div>
-      </div>
-
-      {/* ── Right Column: Auth Card ── */}
-      <div className="flex flex-1 items-center justify-center p-6 lg:p-12 z-10">
-        <div className="w-full max-w-md rounded-[32px] border p-8 shadow-[0_24px_48px_rgba(83,67,48,0.12)] transition-all sm:p-10" style={{ background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(30px)', borderColor: '#e7dece' }}>
-          
-          {/* Tabs */}
-          <div className="mb-8 flex space-x-1 rounded-2xl p-1.5" style={{ background: '#f3ede2' }}>
-            <button
-              onClick={() => { setIsLogin(true); setError(null) }}
-              className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-all ${isLogin ? 'shadow-sm' : ''}`}
-              style={{
-                background: isLogin ? '#ffffff' : 'transparent',
-                color: isLogin ? '#1f2937' : '#7b746b',
-              }}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => { setIsLogin(false); setError(null) }}
-              className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-all ${!isLogin ? 'shadow-sm' : ''}`}
-              style={{
-                background: !isLogin ? '#ffffff' : 'transparent',
-                color: !isLogin ? '#1f2937' : '#7b746b',
-              }}
-            >
-              Sign Up
-            </button>
-          </div>
-
-          <div className="mb-6 text-center">
-            <h2 className="text-2xl font-semibold tracking-tight">{isLogin ? 'Welcome back' : 'Create an account'}</h2>
-            <p className="mt-2 text-sm" style={{ color: '#6b5f52' }}>
-              {isLogin ? 'Enter your details to access your workspace.' : 'Join to start planning and delivering projects.'}
-            </p>
-          </div>
-
-          {error && (
-            <div className="mb-6 rounded-xl border p-3 text-sm text-center font-medium" style={{ background: '#fff4f1', borderColor: '#f2d4cd', color: '#a33a2b' }}>
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="pl-1 text-xs font-bold uppercase tracking-widest" style={{ color: '#7b746b' }}>Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
-                className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all"
-                style={{
-                  background: '#fbfaf7',
-                  borderColor: '#e7dece',
-                  color: '#1f2937'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#9a5b2b'}
-                onBlur={(e) => e.target.style.borderColor = '#e7dece'}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between pl-1">
-                <label className="text-xs font-bold uppercase tracking-widest" style={{ color: '#7b746b' }}>Password</label>
-                {isLogin && <Link href="#" className="text-xs font-semibold transition-colors hover:text-[#9a5b2b]" style={{ color: '#7b746b' }}>Forgot password?</Link>}
+              <div>
+                <span className="block text-lg font-bold tracking-tight text-[#0f172a]">Momentum AI</span>
+                <span className="block text-[11px] font-bold uppercase tracking-[0.18em] text-[#0f6cbd]">Execution workspace</span>
               </div>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all"
-                style={{
-                  background: '#fbfaf7',
-                  borderColor: '#e7dece',
-                  color: '#1f2937'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#9a5b2b'}
-                onBlur={(e) => e.target.style.borderColor = '#e7dece'}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || !email || !password}
-              className="mt-2 w-full rounded-xl py-3 text-sm font-bold transition-all disabled:opacity-50 hover:brightness-110 active:scale-[0.98] flex items-center justify-center gap-2"
-              style={{ background: 'linear-gradient(135deg, #c57b3f 0%, #9a5b2b 100%)', color: '#fffaf4', boxShadow: '0 10px 24px rgba(154,91,43,0.22)' }}
-            >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isLogin ? 'Sign In' : 'Sign Up'}
-            </button>
-          </form>
-
-          <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t" style={{ borderColor: '#eadfcd' }} /></div>
-            <div className="relative flex justify-center text-xs uppercase tracking-widest font-bold">
-              <span className="px-4" style={{ background: 'rgba(255,255,255,0.88)', color: '#8a7f72' }}>Or continue with</span>
-            </div>
+            </Link>
           </div>
 
-          <LoginButton onClick={handleGoogleLogin} loading={loading} />
+          <div className="mt-12 lg:mt-7 xl:mt-9">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#cfe0f5] bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#175cd3] shadow-[0_10px_24px_rgba(15,108,189,0.08)] backdrop-blur">
+              <span className="h-2 w-2 rounded-full bg-[#0f6cbd]" />
+              Plan. Track. Recover.
+            </div>
 
-          {/* Mobile Footer */}
-          <div className="mt-8 text-center lg:hidden">
-            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#8a7f72', opacity: 0.9 }}>
-              © 2026 Momentum AI
+            <h1 className="mt-6 max-w-3xl text-[42px] font-semibold leading-[1.02] tracking-[-0.04em] text-[#101828] sm:text-[56px] lg:mt-4 lg:text-[52px] xl:text-[60px]">
+              Keep projects moving
+              <span className="block text-[#0f6cbd]">before deadlines slip.</span>
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-[#475467] sm:text-xl lg:mt-4 lg:text-base lg:leading-7 xl:text-lg">
+              Momentum AI turns scattered tasks, blockers, and schedules into one execution system with daily priorities,
+              risk visibility, and AI-backed recovery guidance.
             </p>
+
+            <div className="mt-10 grid gap-3 sm:grid-cols-3 lg:mt-6">
+              {[
+                { icon: FolderKanban, label: 'Project clarity', copy: 'See every project, owner, and status in one workspace.' },
+                { icon: CalendarDays, label: 'Daily planning', copy: 'Convert long goals into today’s realistic plan.' },
+                { icon: BrainCircuit, label: 'AI recovery', copy: 'Spot risk early and get next-step recommendations.' },
+              ].map(({ icon: Icon, label, copy }) => (
+                <div
+                  key={label}
+                  className="rounded-[24px] border border-[#dbe7f5] bg-white/80 p-4 shadow-[0_16px_36px_rgba(15,23,42,0.06)] backdrop-blur lg:p-3 xl:p-4"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#eff6ff] text-[#0f6cbd]">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <p className="mt-4 text-sm font-semibold text-[#101828] lg:mt-3">{label}</p>
+                  <p className="mt-2 text-sm leading-6 text-[#667085] lg:leading-5 xl:leading-6">{copy}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+
+          <div className="hidden">
+            <div className="rounded-[28px] border border-[#d9e6f5] bg-[#0d1726] p-5 text-white shadow-[0_28px_70px_rgba(10,20,38,0.26)] lg:p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#98b3d6]">Daily brief</p>
+                  <h2 className="mt-2 text-2xl font-semibold tracking-tight">Execution score at a glance</h2>
+                </div>
+                <div className="rounded-2xl bg-[#0f6cbd] px-3 py-2 text-right shadow-[0_12px_26px_rgba(15,108,189,0.28)]">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#d9ebff]">Score</p>
+                  <p className="text-2xl font-semibold">82</p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#98b3d6]">Open tasks</p>
+                  <p className="mt-2 text-2xl font-semibold">24</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#98b3d6]">At risk</p>
+                  <p className="mt-2 text-2xl font-semibold text-[#fdb022]">3</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#98b3d6]">Blocked</p>
+                  <p className="mt-2 text-2xl font-semibold text-[#f97066]">1</p>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-[#1d3b63] bg-[linear-gradient(180deg,rgba(15,108,189,0.18)_0%,rgba(255,255,255,0.02)_100%)] p-4">
+                <div className="flex items-center gap-2 text-[#d9ebff]">
+                  <Target className="h-4 w-4" />
+                  <p className="text-sm font-semibold">Momentum suggests</p>
+                </div>
+                <p className="mt-3 text-base leading-7 text-white">
+                  Move the product demo milestone into today’s first block and clear the API blocker before it cascades across the week.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-[28px] border border-[#dbe7f5] bg-white/85 p-5 shadow-[0_20px_46px_rgba(15,23,42,0.08)] backdrop-blur">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#667085]">Workspace pulse</p>
+                <span className="rounded-full bg-[#ecfdf3] px-3 py-1 text-xs font-semibold text-[#027a48]">Healthy</span>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {[
+                  {
+                    icon: Sparkles,
+                    tone: 'bg-[#eff8ff] text-[#175cd3]',
+                    title: 'Today’s plan is ready',
+                    copy: 'Four priority actions are sequenced around your deadlines.',
+                  },
+                  {
+                    icon: AlertTriangle,
+                    tone: 'bg-[#fff7ed] text-[#b54708]',
+                    title: 'One project needs attention',
+                    copy: 'A delivery task is trending late and needs recovery planning.',
+                  },
+                  {
+                    icon: ArrowRight,
+                    tone: 'bg-[#f2f4f7] text-[#344054]',
+                    title: 'Cross-team visibility',
+                    copy: 'See project state, recent changes, and next actions in one place.',
+                  },
+                ].map(({ icon: Icon, tone, title, copy }) => (
+                  <div key={title} className="rounded-2xl border border-[#eaecf0] bg-[#fcfdff] p-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl ${tone}`}>
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-[#101828]">{title}</p>
+                        <p className="mt-1 text-sm leading-6 text-[#667085]">{copy}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-auto hidden pt-4 lg:block">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#667085]">© 2026 Momentum AI</p>
+          </div>
+        </section>
+
+        <section className="flex items-center justify-center px-6 pb-12 pt-2 sm:px-8 lg:min-h-0 lg:px-8 lg:py-5 xl:px-12">
+          <div className="w-full max-w-[520px] rounded-[32px] border border-[#d9e6f5] bg-white/88 p-6 shadow-[0_32px_70px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:p-8 lg:p-5 xl:p-6">
+            <div className="rounded-[26px] border border-[#d9e6f5] bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+              <div className="flex rounded-2xl bg-[#eef4fb] p-1.5">
+                <button
+                  onClick={() => {
+                    setIsLogin(true)
+                    setError(null)
+                  }}
+                  className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                    isLogin ? 'bg-white text-[#101828] shadow-[0_10px_24px_rgba(15,23,42,0.08)]' : 'text-[#667085]'
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => {
+                    setIsLogin(false)
+                    setError(null)
+                  }}
+                  className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                    !isLogin ? 'bg-white text-[#101828] shadow-[0_10px_24px_rgba(15,23,42,0.08)]' : 'text-[#667085]'
+                  }`}
+                >
+                  Sign Up
+                </button>
+              </div>
+
+              <div className="px-2 pb-2 pt-6 text-center lg:pt-4">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f6cbd_0%,#115ea3_100%)] text-white shadow-[0_14px_30px_rgba(15,108,189,0.24)] lg:h-12 lg:w-12">
+                  <BrainCircuit className="h-6 w-6" />
+                </div>
+                <h2 className="mt-5 text-[30px] font-semibold tracking-tight text-[#101828] lg:mt-3 lg:text-2xl">
+                  {isLogin ? 'Enter your execution workspace' : 'Create your Momentum workspace'}
+                </h2>
+                <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[#667085]">
+                  {isLogin
+                    ? 'Open your projects, today’s plan, and AI guidance from one focused control center.'
+                    : 'Start turning schedules, blockers, and team work into a trackable execution system.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-3 gap-3 lg:mt-4">
+              {[
+                { label: 'Projects', value: 'Live', tone: 'text-[#175cd3]' },
+                { label: 'Priorities', value: 'Daily', tone: 'text-[#101828]' },
+                { label: 'Risk view', value: 'Early', tone: 'text-[#b54708]' },
+              ].map((stat) => (
+                <div key={stat.label} className="rounded-2xl border border-[#eaecf0] bg-[#fcfdff] px-3 py-3 text-center">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#667085]">{stat.label}</p>
+                  <p className={`mt-1 text-base font-semibold ${stat.tone}`}>{stat.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {error && (
+              <div className="mt-6 rounded-2xl border border-[#f1c0c0] bg-[#fff8f8] px-4 py-3 text-center text-sm font-medium text-[#b42318]">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4 lg:mt-4 lg:space-y-3">
+              <div className="space-y-2">
+                <label className="pl-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#667085]">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  className="h-12 w-full rounded-2xl border border-[#d0d5dd] bg-white px-4 text-sm text-[#101828] outline-none transition placeholder:text-[#98a2b3] hover:border-[#98a2b3] focus:border-[#0f6cbd] focus:shadow-[0_0_0_4px_rgba(15,108,189,0.12)]"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between pl-1">
+                  <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#667085]">Password</label>
+                  {isLogin && (
+                    <Link href="#" className="text-xs font-semibold text-[#0f6cbd] transition hover:text-[#115ea3]">
+                      Forgot password?
+                    </Link>
+                  )}
+                </div>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="h-12 w-full rounded-2xl border border-[#d0d5dd] bg-white px-4 text-sm text-[#101828] outline-none transition placeholder:text-[#98a2b3] hover:border-[#98a2b3] focus:border-[#0f6cbd] focus:shadow-[0_0_0_4px_rgba(15,108,189,0.12)]"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || !email || !password}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0f6cbd_0%,#115ea3_100%)] text-sm font-semibold text-white shadow-[0_16px_32px_rgba(15,108,189,0.24)] transition hover:brightness-110 active:scale-[0.99] disabled:opacity-50"
+              >
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isLogin ? 'Sign In to Momentum AI' : 'Create Workspace'}
+              </button>
+            </form>
+
+            <div className="relative my-7 lg:my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[#e4e7ec]" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#98a2b3]">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+
+            <LoginButton
+              onClick={handleGoogleLogin}
+              loading={loading}
+              className="h-12 rounded-2xl bg-[#111827] text-white shadow-[0_16px_30px_rgba(17,24,39,0.14)] hover:bg-[#0b1220]"
+            />
+
+            <div className="mt-6 rounded-2xl border border-[#e4eef9] bg-[#f7fbff] px-4 py-4 lg:hidden">
+              <p className="text-sm font-semibold text-[#101828]">What happens after sign in</p>
+              <p className="mt-1 text-sm leading-6 text-[#667085]">
+                You’ll land in your workspace portfolio, then move into projects, daily planning, and Momentum AI execution insights.
+              </p>
+            </div>
+
+            <div className="mt-6 text-center lg:hidden">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#667085]">© 2026 Momentum AI</p>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   )

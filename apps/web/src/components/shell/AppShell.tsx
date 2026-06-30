@@ -38,7 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (checkingSession) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f5f5f5] text-[#0f6cbd]">
+      <main className="flex min-h-screen items-center justify-center bg-[#eef6ff] text-[#0f6cbd]">
         <Loader2 className="h-6 w-6 animate-spin" />
       </main>
     )
@@ -47,9 +47,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!user) return null
 
   return (
-    <div className="flex min-h-screen items-start bg-[#f5f5f5] text-[#242424]">
+    <div className="flex min-h-screen items-start bg-[radial-gradient(circle_at_82%_0%,rgba(82,163,235,0.13),transparent_28%),linear-gradient(180deg,#f7fbff_0%,#edf4fc_100%)] text-[#101828]">
       <Sidebar user={user} collapsed={collapsed} onToggle={() => setCollapsed((value) => !value)} />
-      <div className="min-w-0 flex-1 pb-20 lg:pb-0">
+      <div className="min-w-0 flex-1 self-stretch pb-20 lg:pb-0">
         <TopNav user={user} />
         {children}
       </div>

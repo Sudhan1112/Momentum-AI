@@ -2,10 +2,19 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 import { Loader2 } from 'lucide-react'
 
-export function LoginButton({ onClick, loading }: { onClick?: () => Promise<void>; loading?: boolean }) {
+export function LoginButton({
+  onClick,
+  loading,
+  className,
+}: {
+  onClick?: () => Promise<void>
+  loading?: boolean
+  className?: string
+}) {
   const supabase = createClient()
 
   const handleLogin = async () => {
@@ -23,7 +32,12 @@ export function LoginButton({ onClick, loading }: { onClick?: () => Promise<void
   }
 
   return (
-    <Button onClick={handleLogin} disabled={loading} className="w-full flex items-center justify-center gap-2" size="lg">
+    <Button
+      onClick={handleLogin}
+      disabled={loading}
+      className={cn('flex w-full items-center justify-center gap-2', className)}
+      size="lg"
+    >
       {loading ? (
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : (

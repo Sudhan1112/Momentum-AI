@@ -32,37 +32,37 @@ export function TopNav({ user }: { user: User | null }) {
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-[#e0e0e0] bg-white px-4 py-3 sm:px-6">
+      <header className="sticky top-0 z-30 border-b border-[#dbe7f3] bg-white/80 px-4 py-3 shadow-[0_4px_20px_rgba(15,65,115,0.04)] backdrop-blur-xl sm:px-6">
         <div className="flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#9a5b2b] text-white">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#2d9cff_0%,#0f6cbd_100%)] text-white shadow-[0_8px_20px_rgba(15,108,189,0.25)]">
               <Sparkles className="h-4 w-4" />
             </div>
-            <span className="text-sm font-bold text-[#2d241c]">Momentum AI</span>
+            <span className="text-sm font-bold text-[#102a43]">Momentum AI</span>
           </Link>
 
-          <label className="hidden h-8 max-w-lg flex-1 items-center gap-2 rounded border border-[#c7c7c7] bg-[#fafafa] px-2.5 lg:flex"><Search className="h-4 w-4 text-[#616161]" /><input className="min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="Search projects and tasks" aria-label="Search" /></label>
+          <label className="fluent-input-shell hidden max-w-xl flex-1 lg:flex"><Search className="h-4 w-4 text-[#667085]" /><input className="min-w-0 flex-1 bg-transparent text-sm text-[#101828] outline-none" placeholder="Search projects and tasks" aria-label="Search" /></label>
 
           <div className="ml-auto flex items-center gap-3">
-            <button className="hidden h-9 w-9 items-center justify-center rounded hover:bg-[#f5f5f5] sm:flex" aria-label="Notifications"><Bell className="h-4 w-4" /></button>
+            <button className="hidden h-10 w-10 items-center justify-center rounded-xl border border-transparent text-[#667085] transition hover:border-[#e4e7ec] hover:bg-white sm:flex" aria-label="Notifications"><Bell className="h-4 w-4" /></button>
             <button
               type="button"
               onClick={signOut}
-              className="flex items-center gap-2 rounded-xl border border-[#eadfce] bg-white/74 px-2.5 py-2 text-left transition hover:border-[#d6c4aa] hover:bg-white"
+              className="flex h-10 items-center gap-2 rounded-2xl border border-[#e4e7ec] bg-white px-2.5 text-left shadow-[0_4px_14px_rgba(15,23,42,0.04)] transition hover:border-[#cbd5e1] hover:bg-[#f8fafc]"
               aria-label="Sign out"
               title="Sign out"
             >
               <UserAvatar user={user} size="sm" rounded="lg" />
-              <span className="hidden max-w-[140px] truncate text-sm font-semibold text-[#2d241c] sm:block">
+              <span className="hidden max-w-[140px] truncate text-sm font-semibold text-[#102a43] sm:block">
                 {displayNameForUser(user)}
               </span>
-              <LogOut className="hidden h-4 w-4 text-[#6b5f52] sm:block" />
+              <LogOut className="hidden h-4 w-4 text-[#64748b] sm:block" />
             </button>
           </div>
         </div>
       </header>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-4 border-t border-[#e8dece] bg-[#fbf7f0]/96 px-2 py-2 backdrop-blur-xl lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-4 border-t border-[#d5e4f3] bg-white/92 px-2 py-2 shadow-[0_-12px_30px_rgba(15,65,115,0.08)] backdrop-blur-xl lg:hidden">
         {MOBILE_NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = isActive(pathname, href)
           return (
@@ -70,7 +70,7 @@ export function TopNav({ user }: { user: User | null }) {
               key={href}
               href={href}
               className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition ${
-                active ? 'bg-[#f3ede2] text-[#9a5b2b]' : 'text-[#6b5f52]'
+                active ? 'bg-[#eaf4ff] text-[#0f6cbd]' : 'text-[#64748b]'
               }`}
             >
               <Icon className="h-4 w-4" />

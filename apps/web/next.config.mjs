@@ -11,6 +11,7 @@ const externalDistDir = path.relative(__dirname, path.join(os.tmpdir(), `${proje
 // The temp path is repo-specific to avoid stale artifacts from other projects.
 const useExternalDistDir =
   process.platform === 'win32' && !process.env.VERCEL && process.env.GUVI_EXTERNAL_NEXT_DISTDIR !== '0'
+const useMemoryWebpackCache = process.platform === 'win32' && !process.env.VERCEL
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -32,6 +33,12 @@ const nextConfig = {
         root,
       ])
     )
+
+    // Windows local dev can fail to atomically rename webpack cache files in Temp/OneDrive-adjacent setups,
+    // which leads to stale chunks and intermittent ChunkLoadError in the browser.
+    if (useMemoryWebpackCache && process.env.NODE_ENV === 'development') {
+      config.cache = { type: 'memory' }
+    }
 
     return config
   },
